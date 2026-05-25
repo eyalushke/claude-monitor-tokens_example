@@ -1,11 +1,12 @@
 #!/bin/bash
-# Sets up a macOS LaunchAgent to run the ingestion script every 2 hours.
+# Sets up a macOS LaunchAgent to run the ingestion script every 12 hours.
 # Usage: bash scripts/setup-launchd.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLIST_NAME="com.claude-monitor.ingest"
 PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
-LOG_PATH="/tmp/claude-monitor-ingest.log"
+LOG_PATH="$HOME/Library/Logs/claude-monitor-ingest.log"
+INTERVAL=43200  # 12 hours in seconds
 
 cat > "$PLIST_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -20,7 +21,9 @@ cat > "$PLIST_PATH" <<EOF
         <string>${SCRIPT_DIR}/ingest.py</string>
     </array>
     <key>StartInterval</key>
-    <integer>7200</integer>
+    <integer>${INTERVAL}</integer>
+    <key>RunAtLoad</key>
+    <true/>
     <key>StandardOutPath</key>
     <string>${LOG_PATH}</string>
     <key>StandardErrorPath</key>
@@ -39,7 +42,13 @@ EOF
 launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
-echo "LaunchAgent installed at: $PLIST_PATH"
-echo "Runs every 2 hours. Logs at: $LOG_PATH"
-echo "To unload: launchctl unload $PLIST_PATH"
-echo "To run now: launchctl start $PLIST_NAME"
+echo ""
+echo "=== Claude Monitor Auto-Sync Installed ==="
+echo "  Schedule:  Every 12 hours + on login"
+echo "  Plist:     $PLIST_PATH"
+echo "  Log:       $LOG_PATH"
+echo ""
+echo "Commands:"
+echo "  Run now:   launchctl start $PLIST_NAME"
+echo "  Stop:      launchctl unload $PLIST_PATH"
+echo "  Check log: tail -f $LOG_PATH"
