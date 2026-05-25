@@ -38,3 +38,14 @@ export function getModelShortName(modelName: string): string {
   if (modelName.includes("haiku")) return "Haiku";
   return modelName;
 }
+
+export function getModelPricingKey(model: string): keyof typeof MODEL_PRICING {
+  if (model.includes("opus")) return "claude-opus";
+  if (model.includes("haiku")) return "claude-haiku";
+  return "claude-sonnet";
+}
+
+export function estimateCost(input: number, output: number, cacheRead: number, cacheCreate: number, model: string = "claude-opus"): number {
+  const pricing = MODEL_PRICING[getModelPricingKey(model)];
+  return (input * pricing.input + output * pricing.output + cacheRead * pricing.cacheRead + cacheCreate * pricing.cacheCreation) / 1_000_000;
+}

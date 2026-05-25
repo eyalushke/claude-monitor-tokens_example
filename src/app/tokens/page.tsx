@@ -8,7 +8,8 @@ import {
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TOKEN_COLORS, getModelColor, getModelShortName, MODEL_PRICING } from "@/lib/constants";
+import { TOKEN_COLORS, getModelColor, getModelShortName, MODEL_PRICING, getModelPricingKey } from "@/lib/constants";
+import { formatNumber, supabaseAvailable } from "@/lib/utils";
 import type { DailyAggregate } from "@/lib/supabase/types";
 
 // ---------------------------------------------------------------------------
@@ -87,25 +88,8 @@ const SAMPLE_WEEKLY_SAVINGS = 12.4;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
 
-function supabaseAvailable(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-}
 
-function pricingForModel(modelName: string) {
-  if (modelName.includes("opus")) return MODEL_PRICING["claude-opus"];
-  if (modelName.includes("haiku")) return MODEL_PRICING["claude-haiku"];
-  return MODEL_PRICING["claude-sonnet"];
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -217,7 +201,7 @@ export default function TokensPage() {
         const rows: ModelRow[] = [];
         for (const [model, v] of modelMap) {
           const total = v.input + v.output + v.cacheRead + v.cacheCreation;
-          const pricing = pricingForModel(model.toLowerCase());
+          const pricing = MODEL_PRICING[getModelPricingKey(model)];
           const cost =
             (v.input * pricing.input +
               v.output * pricing.output +

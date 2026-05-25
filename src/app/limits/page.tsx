@@ -4,8 +4,9 @@
 import { useEffect, useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
+import { formatNumber as formatNum } from "@/lib/utils";
 import {
   AlertTriangle, Zap, Clock, TrendingUp, ChevronDown, ChevronUp,
   Activity, Wrench, FolderOpen,
@@ -89,11 +90,6 @@ interface DayDetail {
   topProjects: { name: string; tokens: number }[];
 }
 
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-}
 
 function getSeverity(day: DayData): "critical" | "warning" | "safe" {
   if (day.wasThrottled && day.throttleCount >= 2) return "critical";

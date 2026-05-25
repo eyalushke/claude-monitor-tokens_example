@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Wrench, Hash, Percent } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -56,11 +57,6 @@ const TOOL_COLORS: Record<string, string> = {
 
 // ─── Helpers ───────────────────────────────────────────────────
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-}
 
 interface ToolRow {
   name: string;

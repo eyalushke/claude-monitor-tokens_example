@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import { FolderOpen, Layers, DollarSign } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -108,11 +109,6 @@ const FALLBACK_COLORS = [
 
 // ─── Helpers ───────────────────────────────────────────────────
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-}
 
 function formatCost(tokens: number): string {
   // Rough estimate: average blended cost ~$15/M tokens (Opus-heavy usage)

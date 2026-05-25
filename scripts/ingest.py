@@ -16,7 +16,7 @@ import logging
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -497,23 +497,21 @@ def main() -> None:
 
     if all_rate_limits:
         log.info(f"Upserting {len(all_rate_limits)} rate limit events...")
-        # Compute tokens in 5hr window before each rate limit event
+        from bisect import bisect_left, bisect_right
         sorted_msgs = sorted(all_messages, key=lambda m: m["timestamp"])
+        timestamps = [m["timestamp"] for m in sorted_msgs]
+
         for rl in all_rate_limits:
             rl_ts = rl["timestamp"]
-            window_in = window_out = window_cr = window_cc = window_msgs = 0
-            for m in sorted_msgs:
-                if m["timestamp"] <= rl_ts and m["timestamp"] >= rl_ts[:11] + "00:00:00" + rl_ts[19:]:
-                    window_in += m.get("input_tokens", 0)
-                    window_out += m.get("output_tokens", 0)
-                    window_cr += m.get("cache_read_tokens", 0)
-                    window_cc += m.get("cache_creation_tokens", 0)
-                    window_msgs += 1
-            rl["tokens_in_window_input"] = window_in
-            rl["tokens_in_window_output"] = window_out
-            rl["tokens_in_window_cache_read"] = window_cr
-            rl["tokens_in_window_cache_create"] = window_cc
-            rl["messages_in_window"] = window_msgs
+            window_start = (datetime.fromisoformat(rl_ts.replace("Z", "+00:00")) - timedelta(hours=5)).isoformat()
+            lo = bisect_left(timestamps, window_start)
+            hi = bisect_right(timestamps, rl_ts)
+            window = sorted_msgs[lo:hi]
+            rl["tokens_in_window_input"] = sum(m.get("input_tokens", 0) for m in window)
+            rl["tokens_in_window_output"] = sum(m.get("output_tokens", 0) for m in window)
+            rl["tokens_in_window_cache_read"] = sum(m.get("cache_read_tokens", 0) for m in window)
+            rl["tokens_in_window_cache_create"] = sum(m.get("cache_creation_tokens", 0) for m in window)
+            rl["messages_in_window"] = len(window)
 
         unique_rls = {}
         for rl in all_rate_limits:

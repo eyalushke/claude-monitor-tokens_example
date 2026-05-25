@@ -12,24 +12,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/cards/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TOKEN_COLORS, PLAN_LIMITS, getModelColor, getModelShortName, MODEL_PRICING } from "@/lib/constants";
+import { TOKEN_COLORS, PLAN_LIMITS, getModelColor, getModelShortName, estimateCost as estimateCostRaw } from "@/lib/constants";
+import { formatNumber, supabaseAvailable } from "@/lib/utils";
 import type { DailyAggregate } from "@/lib/supabase/types";
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-}
 
-function supabaseAvailable(): boolean {
-  return typeof window !== "undefined" && !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-}
 
-function estimateCost(row: DailyAggregate): number {
-  const model = row.model ?? "claude-opus";
-  const pricing = MODEL_PRICING[model.includes("opus") ? "claude-opus" : model.includes("haiku") ? "claude-haiku" : "claude-sonnet"];
-  return (row.total_input_tokens * pricing.input + row.total_output_tokens * pricing.output + row.total_cache_read_tokens * pricing.cacheRead + row.total_cache_creation_tokens * pricing.cacheCreation) / 1_000_000;
-}
 
 const PROJECT_COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#06B6D4", "#84CC16"];
 
@@ -94,7 +82,7 @@ export default function OverviewPage() {
         // Today's cost + sessions
         const today = new Date().toISOString().split("T")[0];
         const todayAggs = (dailyAggs as DailyAggregate[]).filter((r) => r.date === today);
-        setCostToday(todayAggs.reduce((s, r) => s + estimateCost(r), 0));
+        setCostToday(todayAggs.reduce((s, r) => s + estimateCostRaw(r.total_input_tokens, r.total_output_tokens, r.total_cache_read_tokens, r.total_cache_creation_tokens, r.model ?? "claude-opus"), 0));
         setSessionsToday(todayAggs.reduce((s, r) => s + r.session_count, 0));
         setMessagesToday(todayAggs.reduce((s, r) => s + r.message_count, 0));
         setToolsToday(todayAggs.reduce((s, r) => s + r.total_tool_calls, 0));
@@ -175,7 +163,7 @@ export default function OverviewPage() {
           existing.messages += row.message_count;
           existing.tools += row.total_tool_calls;
           existing.tokens += row.total_input_tokens + row.total_output_tokens;
-          existing.cost += estimateCost(row);
+          existing.cost += estimateCostRaw(row.total_input_tokens, row.total_output_tokens, row.total_cache_read_tokens, row.total_cache_creation_tokens, row.model ?? "claude-opus");
           activityMap.set(d, existing);
         }
         setRecentActivity(
