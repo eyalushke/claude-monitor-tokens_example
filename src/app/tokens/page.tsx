@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOKEN_COLORS, getModelColor, getModelShortName, MODEL_PRICING, getModelPricingKey } from "@/lib/constants";
 import { formatNumber, supabaseAvailable } from "@/lib/utils";
+import { useDateRange } from "@/hooks/use-date-range";
 import type { DailyAggregate } from "@/lib/supabase/types";
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,7 @@ const SAMPLE_WEEKLY_SAVINGS = 12.4;
 // ---------------------------------------------------------------------------
 
 export default function TokensPage() {
+  const { dateStr } = useDateRange();
   const [loading, setLoading] = useState(true);
   const [usingSample, setUsingSample] = useState(false);
 
@@ -115,10 +117,6 @@ export default function TokensPage() {
       try {
         const { createBrowserClient } = await import("@/lib/supabase/client");
         const supabase = createBrowserClient();
-
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const dateStr = sevenDaysAgo.toISOString().split("T")[0];
 
         const { data: dailyAggs, error } = await supabase
           .from("daily_aggregates")
@@ -242,7 +240,7 @@ export default function TokensPage() {
     }
 
     fetchData();
-  }, []);
+  }, [dateStr]);
 
   const totalTokens = tokenTypePie.reduce((s: number, d: any) => s + d.value, 0);
 

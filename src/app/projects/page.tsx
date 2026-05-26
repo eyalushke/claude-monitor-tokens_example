@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
+import { useDateRange } from "@/hooks/use-date-range";
 import type { DailyAggregate } from "@/lib/supabase/types";
 // ─── Sample Data ───────────────────────────────────────────────
 
@@ -214,6 +215,7 @@ function CustomTreemapContent({
 // ─── Page Component ────────────────────────────────────────────
 
 export default function ProjectsPage() {
+  const { dateStr } = useDateRange();
   const [projectData, setProjectData] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -236,6 +238,7 @@ export default function ProjectsPage() {
         const { data, error } = await supabase
           .from("daily_aggregates")
           .select("*")
+          .gte("date", dateStr)
           .order("date", { ascending: false });
 
         if (error || !data || data.length === 0) {
@@ -253,7 +256,7 @@ export default function ProjectsPage() {
     }
 
     fetchData();
-  }, []);
+  }, [dateStr]);
 
   const totalTokens = projectData.reduce((s, p) => s + p.tokens, 0);
   const totalSessions = projectData.reduce((s, p) => s + p.sessions, 0);

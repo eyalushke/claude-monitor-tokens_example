@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
+import { useDateRange } from "@/hooks/use-date-range";
 import { MODEL_PRICING } from "@/lib/constants";
 import type { DailyAggregate } from "@/lib/supabase/types";
 // ─── Sample Data ───────────────────────────────────────────────
@@ -120,6 +121,7 @@ function aggregateCosts(rows: DailyAggregate[]): CostRow[] {
 // ─── Page Component ────────────────────────────────────────────
 
 export default function CostsPage() {
+  const { dateStr } = useDateRange();
   const [costData, setCostData] = useState<CostRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -142,6 +144,7 @@ export default function CostsPage() {
         const { data, error } = await supabase
           .from("daily_aggregates")
           .select("*")
+          .gte("date", dateStr)
           .order("date", { ascending: true });
 
         if (error || !data || data.length === 0) {
@@ -159,7 +162,7 @@ export default function CostsPage() {
     }
 
     fetchData();
-  }, []);
+  }, [dateStr]);
 
   // Compute KPIs from cost data
   const todayCost = costData.length > 0

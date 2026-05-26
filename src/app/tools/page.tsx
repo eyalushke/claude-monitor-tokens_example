@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
+import { useDateRange } from "@/hooks/use-date-range";
 import type { ToolDailyAggregate } from "@/lib/supabase/types";
 // ─── Sample Data ───────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ function aggregateToolData(rows: ToolDailyAggregate[]): ToolRow[] {
 // ─── Page Component ────────────────────────────────────────────
 
 export default function ToolsPage() {
+  const { dateStr } = useDateRange();
   const [toolData, setToolData] = useState<ToolRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -101,6 +103,7 @@ export default function ToolsPage() {
         const { data, error } = await supabase
           .from("tool_daily_aggregates")
           .select("*")
+          .gte("date", dateStr)
           .order("date", { ascending: false });
 
         if (error || !data || data.length === 0) {
@@ -118,7 +121,7 @@ export default function ToolsPage() {
     }
 
     fetchData();
-  }, []);
+  }, [dateStr]);
 
   const totalTokens = toolData.reduce((s, t) => s + t.tokens, 0);
   const totalInvocations = toolData.reduce((s, t) => s + t.invocations, 0);
