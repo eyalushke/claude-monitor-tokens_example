@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   Sun,
   Moon,
-  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
@@ -80,8 +79,8 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom: theme toggle + mockup link */}
-        <div className="border-t border-border px-2 py-3 space-y-1">
+        {/* Bottom: theme toggle */}
+        <div className="border-t border-border px-2 py-3">
           <button
             onClick={toggleTheme}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -90,19 +89,6 @@ export function Sidebar() {
             {theme === "dark" ? <Sun className="size-4 shrink-0" /> : <Moon className="size-4 shrink-0" />}
             <span className="hidden lg:block">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
           </button>
-          <Link
-            href="/mockup"
-            title="Mockup"
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive("/mockup")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            )}
-          >
-            <Eye className="size-4 shrink-0" />
-            <span className="hidden lg:block">Mockup</span>
-          </Link>
         </div>
       </aside>
 

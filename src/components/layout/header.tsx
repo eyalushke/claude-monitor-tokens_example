@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Clock, Sun, Moon, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Sun, Moon, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useSyncContext } from "@/components/sync-provider";
 import {
@@ -22,7 +22,6 @@ const pageTitles: Record<string, string> = {
   "/projects": "Projects",
   "/costs": "Costs",
   "/recommendations": "Tips",
-  "/mockup": "Mockup",
 };
 
 const rangeLabels: Record<DateRange, string> = {
@@ -50,8 +49,13 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-3 sm:px-4 lg:px-6">
-      {/* Left: page title */}
-      <h1 className="text-base sm:text-lg font-semibold truncate">{title}</h1>
+      {/* Left: page title + last sync */}
+      <div className="min-w-0">
+        <h1 className="text-base sm:text-lg font-semibold truncate leading-tight">{title}</h1>
+        <p className="text-[10px] text-muted-foreground leading-tight">
+          Last sync: {lastSync}
+        </p>
+      </div>
 
       {/* Right: controls */}
       <div className="flex items-center gap-2 sm:gap-3">
@@ -96,12 +100,6 @@ export function Header() {
           )}
           <span className="hidden sm:inline">{isSyncing ? "Syncing..." : "Sync"}</span>
         </button>
-
-        {/* Last sync badge - hide on small screens */}
-        <Badge variant="secondary" className="hidden sm:inline-flex gap-1.5 text-xs">
-          <Clock className="size-3" />
-          {lastSync}
-        </Badge>
 
         {/* Plan badge */}
         <Badge variant="outline" className="text-xs">Max5</Badge>
