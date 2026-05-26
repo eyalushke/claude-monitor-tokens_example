@@ -6,7 +6,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { formatNumber as formatNum } from "@/lib/utils";
+import { formatNumber as formatNum, utcToLocalTime, utcToLocalHour } from "@/lib/utils";
 import {
   AlertTriangle, Zap, Clock, TrendingUp, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
@@ -247,7 +247,7 @@ export default function LimitsPage() {
 
       const throttleTimes = (rateLimits || [])
         .filter((rl: any) => rl.reset_message)
-        .map((rl: any) => rl.timestamp.slice(11, 16));
+        .map((rl: any) => utcToLocalTime(rl.timestamp));
       setHourlyThrottleTimes(throttleTimes);
 
       if (!messages || messages.length === 0) {
@@ -272,7 +272,7 @@ export default function LimitsPage() {
       const hourProjectBuckets: Record<string, Record<string, number>> = {};
 
       for (const m of messages) {
-        const hour = m.timestamp.slice(11, 13) + ":00";
+        const hour = utcToLocalHour(m.timestamp);
         const proj = sessionProject[m.session_id] || "unknown";
         const tokens = (m.input_tokens || 0) + (m.output_tokens || 0);
         projectTotals[proj] = (projectTotals[proj] || 0) + tokens;
@@ -383,8 +383,8 @@ export default function LimitsPage() {
       const projectTotals: Record<string, number> = {};
 
       for (const m of messages) {
-        const hourKey = m.timestamp.slice(0, 13);
-        const hourLabel = m.timestamp.slice(11, 13) + ":00";
+        const hourKey = utcToLocalHour(m.timestamp);
+        const hourLabel = hourKey;
         if (!hourBuckets[hourKey]) {
           hourBuckets[hourKey] = {
             hour: hourKey, label: hourLabel,
@@ -527,7 +527,7 @@ export default function LimitsPage() {
         projectRunning[proj] = (projectRunning[proj] || 0) + tokens;
         projectTotalTokens[proj] = (projectTotalTokens[proj] || 0) + tokens;
 
-        const entry: Record<string, any> = { time: m.timestamp.slice(11, 16) };
+        const entry: Record<string, any> = { time: utcToLocalTime(m.timestamp) };
         for (const [p, v] of Object.entries(projectRunning)) entry[p] = v;
         cumulative.push(entry);
       }
@@ -770,7 +770,7 @@ export default function LimitsPage() {
                                       className={`w-full text-left rounded-md px-2 py-1.5 transition-colors ${isActiveDrilldown ? "bg-red-500/20 ring-1 ring-red-500/40" : "hover:bg-red-500/10"}`}
                                     >
                                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs">
-                                        <span className="font-mono font-bold text-red-400">{e.timestamp.slice(11, 16)}</span>
+                                        <span className="font-mono font-bold text-red-400">{utcToLocalTime(e.timestamp)}</span>
                                         <span className="text-red-300">{e.reset_message}</span>
                                         <span className="text-muted-foreground">
                                           Window: {formatNum(e.tokens_in_window_input + e.tokens_in_window_output)} tok |
@@ -800,7 +800,7 @@ export default function LimitsPage() {
                                                 {drilldown.totalMessages} messages
                                               </span>
                                               <span className="bg-muted px-2 py-1 rounded text-muted-foreground">
-                                                Window: {drilldown.windowStart.slice(11, 16)} → {e.timestamp.slice(11, 16)}
+                                                Window: {utcToLocalTime(drilldown.windowStart)} → {utcToLocalTime(e.timestamp)}
                                               </span>
                                             </div>
 
@@ -858,7 +858,7 @@ export default function LimitsPage() {
                                                           </td>
                                                           <td className="text-right py-1 font-mono text-muted-foreground">{formatNum(s.cacheRead)}</td>
                                                           <td className="text-right py-1">{s.messageCount}</td>
-                                                          <td className="py-1 text-muted-foreground">{s.firstMessage.slice(11, 16)}→{s.lastMessage.slice(11, 16)}</td>
+                                                          <td className="py-1 text-muted-foreground">{utcToLocalTime(s.firstMessage)}→{utcToLocalTime(s.lastMessage)}</td>
                                                           <td className="py-1 pl-2">
                                                             <div className="flex gap-0.5 flex-wrap">
                                                               {topTools.map(([name, count]) => (
@@ -890,7 +890,7 @@ export default function LimitsPage() {
                                                           <span className="font-mono font-medium">{mainSession.projectName}</span>
                                                           <span className="font-mono text-muted-foreground text-[10px]">{mainSession.sessionId.slice(0, 8)}</span>
                                                           <span className="font-bold">{formatNum(mainTotal)}</span>
-                                                          <span className="text-muted-foreground">{mainSession.firstMessage.slice(11, 16)}→{mainSession.lastMessage.slice(11, 16)}</span>
+                                                          <span className="text-muted-foreground">{utcToLocalTime(mainSession.firstMessage)}→{utcToLocalTime(mainSession.lastMessage)}</span>
                                                         </div>
                                                         {children.length > 0 && (
                                                           <div className="ml-4 mt-1 space-y-0.5 border-l border-border/30 pl-2">
@@ -901,7 +901,7 @@ export default function LimitsPage() {
                                                                 <span className="font-mono">{child.sessionId.split("/")[1]?.slice(0, 8) || child.sessionId.slice(0, 8)}</span>
                                                                 <span className="font-bold text-foreground">{formatNum(child.inputTokens + child.outputTokens)}</span>
                                                                 <span>{child.messageCount} msgs</span>
-                                                                <span>{child.firstMessage.slice(11, 16)}→{child.lastMessage.slice(11, 16)}</span>
+                                                                <span>{utcToLocalTime(child.firstMessage)}→{utcToLocalTime(child.lastMessage)}</span>
                                                               </div>
                                                             ))}
                                                             <div className="text-[10px] text-muted-foreground mt-1 pt-1 border-t border-border/20">
