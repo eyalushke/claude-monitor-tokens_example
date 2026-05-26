@@ -90,6 +90,23 @@ def _get_supabase_status() -> dict:
     return {}
 
 
+def _reset_sync_state_to_idle() -> None:
+    """Reset sync_state to idle in Supabase when ingest fails."""
+    try:
+        from supabase import create_client
+        from supabase.lib.client_options import SyncClientOptions
+
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_SERVICE_KEY")
+        if not url or not key:
+            return
+        client = create_client(url, key, options=SyncClientOptions(schema="claude_monitor"))
+        client.table("sync_state").update({"status": "idle"}).eq("id", 1).execute()
+        log.info("Reset sync_state to idle after failed ingestion")
+    except Exception as e:
+        log.warning(f"Failed to reset sync_state: {e}")
+
+
 class TriggerHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         log.info(format % args)
@@ -169,8 +186,11 @@ class TriggerHandler(BaseHTTPRequestHandler):
                     for line in stdout.decode("utf-8", errors="replace").splitlines():
                         log.info(f"[ingest] {line}")
                 log.info(f"Ingestion finished with exit code {proc.returncode}")
+                if proc.returncode != 0:
+                    _reset_sync_state_to_idle()
             except Exception as e:
                 log.error(f"Ingestion failed: {e}")
+                _reset_sync_state_to_idle()
             finally:
                 with _sync_lock:
                     _sync_running = False
