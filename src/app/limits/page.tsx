@@ -9,6 +9,7 @@ import {
 import { formatNumber as formatNum } from "@/lib/utils";
 import {
   AlertTriangle, Zap, Clock, TrendingUp, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight,
   Activity, Wrench, FolderOpen,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,6 +121,13 @@ export default function LimitsPage() {
   const [drilldown, setDrilldown] = useState<ThrottleDrilldown | null>(null);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
 
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [hourlyProjectData, setHourlyProjectData] = useState<any[]>([]);
+  const [hourlyProjectNames, setHourlyProjectNames] = useState<string[]>([]);
+  const [hourlyLoading, setHourlyLoading] = useState(false);
+  const [hourlySessions, setHourlySessions] = useState(0);
+  const [hourlyMessages, setHourlyMessages] = useState(0);
+
   async function loadDays() {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -200,6 +208,109 @@ export default function LimitsPage() {
     const id = setTimeout(loadDays, 0);
     return () => clearTimeout(id);
   }, [syncVersion]);
+
+  async function loadHourlyProjects(date: string) {
+    setHourlyLoading(true);
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseKey) {
+        setHourlyProjectData(sampleHourlyProjects);
+        setHourlyProjectNames(["eyal-second-brain-llm", "claude-monitor-tokens"]);
+        setHourlySessions(12);
+        setHourlyMessages(450);
+        setHourlyLoading(false);
+        return;
+      }
+
+      const { createBrowserClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserClient();
+
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("timestamp, input_tokens, output_tokens, session_id")
+        .gte("timestamp", `${date}T00:00:00Z`)
+        .lte("timestamp", `${date}T23:59:59Z`)
+        .order("timestamp", { ascending: true })
+        .limit(5000);
+
+      if (!messages || messages.length === 0) {
+        setHourlyProjectData([]);
+        setHourlyProjectNames([]);
+        setHourlySessions(0);
+        setHourlyMessages(0);
+        setHourlyLoading(false);
+        return;
+      }
+
+      const sessionIds = [...new Set(messages.map((m: any) => m.session_id))];
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("id, project_name")
+        .in("id", sessionIds);
+
+      const sessionProject: Record<string, string> = {};
+      for (const s of (sessions || [])) sessionProject[s.id] = s.project_name;
+
+      const projectTotals: Record<string, number> = {};
+      const hourProjectBuckets: Record<string, Record<string, number>> = {};
+
+      for (const m of messages) {
+        const hour = m.timestamp.slice(11, 13) + ":00";
+        const proj = sessionProject[m.session_id] || "unknown";
+        const tokens = (m.input_tokens || 0) + (m.output_tokens || 0);
+        projectTotals[proj] = (projectTotals[proj] || 0) + tokens;
+        if (!hourProjectBuckets[hour]) hourProjectBuckets[hour] = {};
+        hourProjectBuckets[hour][proj] = (hourProjectBuckets[hour][proj] || 0) + tokens;
+      }
+
+      const topProjects = Object.entries(projectTotals)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 6)
+        .map(([name]) => name);
+
+      const hours = Object.keys(hourProjectBuckets).sort();
+      const chartData = hours.map((hour) => {
+        const entry: any = { hour };
+        let otherTotal = 0;
+        for (const [proj, tokens] of Object.entries(hourProjectBuckets[hour])) {
+          if (topProjects.includes(proj)) {
+            entry[proj] = tokens;
+          } else {
+            otherTotal += tokens;
+          }
+        }
+        for (const proj of topProjects) {
+          if (!entry[proj]) entry[proj] = 0;
+        }
+        if (otherTotal > 0) entry["Other"] = otherTotal;
+        return entry;
+      });
+
+      setHourlyProjectData(chartData);
+      setHourlyProjectNames(topProjects);
+      setHourlySessions(sessionIds.length);
+      setHourlyMessages(messages.length);
+    } catch {
+      setHourlyProjectData([]);
+      setHourlyProjectNames([]);
+    } finally {
+      setHourlyLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const id = setTimeout(() => loadHourlyProjects(selectedDate), 0);
+    return () => clearTimeout(id);
+  }, [selectedDate, syncVersion]);
+
+  function navigateDate(dir: number) {
+    const d = new Date(selectedDate + "T12:00:00");
+    d.setDate(d.getDate() + dir);
+    const today = new Date().toISOString().slice(0, 10);
+    const newDate = d.toISOString().slice(0, 10);
+    if (newDate <= today) setSelectedDate(newDate);
+  }
 
   async function loadDayDetail(date: string) {
     if (expandedDay === date) {
@@ -482,24 +593,61 @@ export default function LimitsPage() {
         </Card>
       </div>
 
-      {/* Daily Usage Chart */}
+      {/* Hourly by Project — navigable by date */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Daily Token Consumption vs Limit</CardTitle>
-          <CardDescription>Red markers show days you were actually throttled by Claude. Token bars show daily input+output consumption.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Hourly Token Usage by Project</CardTitle>
+              <CardDescription>
+                {hourlySessions} sessions, {hourlyMessages} messages
+                {days.find(d => d.date === selectedDate)?.wasThrottled && (
+                  <Badge variant="destructive" className="ml-2 text-[10px]">
+                    <AlertTriangle className="h-3 w-3 mr-1" />Throttled
+                  </Badge>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => navigateDate(-1)} className="p-1.5 rounded-md hover:bg-accent transition-colors" title="Previous day">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-mono font-medium min-w-[100px] text-center">
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+              <button
+                onClick={() => navigateDate(1)}
+                disabled={selectedDate >= new Date().toISOString().slice(0, 10)}
+                className="p-1.5 rounded-md hover:bg-accent transition-colors disabled:opacity-30"
+                title="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={[...days].reverse().slice(-30)}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="date" fontSize={10} tickFormatter={(v: string) => v.slice(5)} />
-              <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} />
-              <Tooltip formatter={(v: any) => formatNum(Number(v))} />
-              <Legend />
-              <Bar dataKey="inputTokens" name="Input" stackId="a" fill="#3B82F6" />
-              <Bar dataKey="outputTokens" name="Output" stackId="a" fill="#10B981" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hourlyLoading ? (
+            <div className="h-[280px] bg-muted animate-pulse rounded" />
+          ) : hourlyProjectData.length === 0 ? (
+            <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">No data for this date</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={hourlyProjectData}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="hour" fontSize={10} />
+                <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} />
+                <Tooltip formatter={(v: any) => formatNum(Number(v))} />
+                <Legend />
+                {hourlyProjectNames.map((name, i) => (
+                  <Bar key={name} dataKey={name} stackId="p" fill={PROJECT_COLORS[i % PROJECT_COLORS.length]} />
+                ))}
+                {hourlyProjectData.some((d: any) => d.Other > 0) && (
+                  <Bar dataKey="Other" stackId="p" fill="#6B7280" radius={[2, 2, 0, 0]} />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -874,6 +1022,17 @@ export default function LimitsPage() {
 }
 
 // ─── Sample Data ────────────────────────────────────────────
+
+const PROJECT_COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#06B6D4", "#84CC16"];
+
+const sampleHourlyProjects = [
+  { hour: "07:00", "eyal-second-brain-llm": 65000, "claude-monitor-tokens": 12000 },
+  { hour: "08:00", "eyal-second-brain-llm": 52000, "claude-monitor-tokens": 8000 },
+  { hour: "09:00", "eyal-second-brain-llm": 78000, "claude-monitor-tokens": 0 },
+  { hour: "10:00", "eyal-second-brain-llm": 45000, "claude-monitor-tokens": 25000 },
+  { hour: "14:00", "eyal-second-brain-llm": 92000, "claude-monitor-tokens": 15000 },
+  { hour: "15:00", "eyal-second-brain-llm": 110000, "claude-monitor-tokens": 0 },
+];
 
 const sampleDays: DayData[] = [
   { date: "2026-05-24", totalTokens: 920725, inputTokens: 420000, outputTokens: 500725, cacheRead: 390223363, cacheCreate: 28000000, sessions: 36, messages: 2108, toolCalls: 1347, projects: ["eyal-second-brain-llm"], models: ["claude-opus-4-6"], wasThrottled: true, throttleEvents: [{ timestamp: "2026-05-24T14:54:41Z", reset_message: "You've hit your limit - resets 6pm", tokens_in_window_input: 21798, tokens_in_window_output: 371070, tokens_in_window_cache_read: 192355634, tokens_in_window_cache_create: 5282656, messages_in_window: 450 }], throttleCount: 1 },
