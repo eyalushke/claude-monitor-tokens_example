@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useSyncContext } from "@/components/sync-provider";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
@@ -113,7 +112,6 @@ function getSeverityBg(severity: string): string {
 }
 
 export default function LimitsPage() {
-  const { syncVersion } = useSyncContext();
   const [days, setDays] = useState<DayData[]>([]);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null);
@@ -209,7 +207,7 @@ export default function LimitsPage() {
   useEffect(() => {
     const id = setTimeout(loadDays, 0);
     return () => clearTimeout(id);
-  }, [syncVersion]);
+  }, []);
 
   async function loadHourlyProjects(date: string) {
     setHourlyLoading(true);
@@ -318,7 +316,7 @@ export default function LimitsPage() {
   useEffect(() => {
     const id = setTimeout(() => loadHourlyProjects(selectedDate), 0);
     return () => clearTimeout(id);
-  }, [selectedDate, syncVersion]);
+  }, [selectedDate]);
 
   function navigateDate(dir: number) {
     const d = new Date(selectedDate + "T12:00:00");

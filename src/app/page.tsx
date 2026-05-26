@@ -11,7 +11,7 @@ import { Zap, DollarSign, Monitor, Clock, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/cards/stat-card";
-import { useSyncContext } from "@/components/sync-provider";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOKEN_COLORS, PLAN_LIMITS, getModelColor, getModelShortName, estimateCost as estimateCostRaw } from "@/lib/constants";
 import { formatNumber, supabaseAvailable } from "@/lib/utils";
@@ -23,7 +23,6 @@ import type { DailyAggregate } from "@/lib/supabase/types";
 const PROJECT_COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#06B6D4", "#84CC16"];
 
 export default function OverviewPage() {
-  const { syncVersion } = useSyncContext();
   const [loading, setLoading] = useState(true);
   const [usingSample, setUsingSample] = useState(false);
   const [gaugePct, setGaugePct] = useState(0);
@@ -213,7 +212,7 @@ export default function OverviewPage() {
     }
 
     fetchData();
-  }, [syncVersion]);
+  }, []);
 
   const windowLimit = PLAN_LIMITS.max5.tokens;
   const remaining = Math.max(0, windowLimit - gaugeUsed);

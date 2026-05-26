@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TOKEN_COLORS, getModelColor, getModelShortName, MODEL_PRICING, getModelPricingKey } from "@/lib/constants";
 import { formatNumber, supabaseAvailable } from "@/lib/utils";
 import type { DailyAggregate } from "@/lib/supabase/types";
-import { useSyncContext } from "@/components/sync-provider";
 
 // ---------------------------------------------------------------------------
 // Sample / fallback data
@@ -97,7 +96,6 @@ const SAMPLE_WEEKLY_SAVINGS = 12.4;
 // ---------------------------------------------------------------------------
 
 export default function TokensPage() {
-  const { syncVersion } = useSyncContext();
   const [loading, setLoading] = useState(true);
   const [usingSample, setUsingSample] = useState(false);
 
@@ -244,7 +242,7 @@ export default function TokensPage() {
     }
 
     fetchData();
-  }, [syncVersion]);
+  }, []);
 
   const totalTokens = tokenTypePie.reduce((s: number, d: any) => s + d.value, 0);
 

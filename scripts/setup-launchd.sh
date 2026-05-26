@@ -1,25 +1,20 @@
 #!/bin/bash
-# Sets up macOS LaunchAgents for:
-#   1. Ingestion script (every 12 hours)
-#   2. Trigger server (always-on, lets the browser trigger syncs)
+# Sets up a macOS LaunchAgent to run the ingestion script every 6 hours.
 # Usage: bash scripts/setup-launchd.sh
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLIST_NAME="com.claude-monitor.ingest"
+PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_NAME}.plist"
+LOG_PATH="$HOME/Library/Logs/claude-monitor-ingest.log"
+INTERVAL=21600  # 6 hours in seconds
 
-# ── Agent 1: Ingestion (periodic) ──────────────────────────────
-
-INGEST_PLIST_NAME="com.claude-monitor.ingest"
-INGEST_PLIST_PATH="$HOME/Library/LaunchAgents/${INGEST_PLIST_NAME}.plist"
-INGEST_LOG_PATH="$HOME/Library/Logs/claude-monitor-ingest.log"
-INTERVAL=43200  # 12 hours in seconds
-
-cat > "$INGEST_PLIST_PATH" <<EOF
+cat > "$PLIST_PATH" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>${INGEST_PLIST_NAME}</string>
+    <string>${PLIST_NAME}</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
@@ -30,9 +25,9 @@ cat > "$INGEST_PLIST_PATH" <<EOF
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>${INGEST_LOG_PATH}</string>
+    <string>${LOG_PATH}</string>
     <key>StandardErrorPath</key>
-    <string>${INGEST_LOG_PATH}</string>
+    <string>${LOG_PATH}</string>
     <key>WorkingDirectory</key>
     <string>${SCRIPT_DIR}</string>
     <key>EnvironmentVariables</key>
@@ -44,63 +39,20 @@ cat > "$INGEST_PLIST_PATH" <<EOF
 </plist>
 EOF
 
-launchctl unload "$INGEST_PLIST_PATH" 2>/dev/null
-launchctl load "$INGEST_PLIST_PATH"
+# Unload old agents (ingest + trigger server if present)
+launchctl unload "$PLIST_PATH" 2>/dev/null
+launchctl unload "$HOME/Library/LaunchAgents/com.claude-monitor.trigger.plist" 2>/dev/null
+rm -f "$HOME/Library/LaunchAgents/com.claude-monitor.trigger.plist"
 
-# ── Agent 2: Trigger Server (always-on) ───────────────────────
-
-TRIGGER_PLIST_NAME="com.claude-monitor.trigger"
-TRIGGER_PLIST_PATH="$HOME/Library/LaunchAgents/${TRIGGER_PLIST_NAME}.plist"
-TRIGGER_LOG_PATH="$HOME/Library/Logs/claude-monitor-trigger.log"
-
-cat > "$TRIGGER_PLIST_PATH" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${TRIGGER_PLIST_NAME}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/bin/python3</string>
-        <string>${SCRIPT_DIR}/trigger_server.py</string>
-    </array>
-    <key>KeepAlive</key>
-    <true/>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>${TRIGGER_LOG_PATH}</string>
-    <key>StandardErrorPath</key>
-    <string>${TRIGGER_LOG_PATH}</string>
-    <key>WorkingDirectory</key>
-    <string>${SCRIPT_DIR}</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin</string>
-    </dict>
-</dict>
-</plist>
-EOF
-
-launchctl unload "$TRIGGER_PLIST_PATH" 2>/dev/null
-launchctl load "$TRIGGER_PLIST_PATH"
+launchctl load "$PLIST_PATH"
 
 echo ""
-echo "=== Claude Monitor Agents Installed ==="
-echo ""
-echo "  1. Auto-Sync (ingestion every 12hr + on login)"
-echo "     Plist:  $INGEST_PLIST_PATH"
-echo "     Log:    $INGEST_LOG_PATH"
-echo ""
-echo "  2. Trigger Server (always-on, localhost:7829)"
-echo "     Plist:  $TRIGGER_PLIST_PATH"
-echo "     Log:    $TRIGGER_LOG_PATH"
+echo "=== Claude Monitor Auto-Sync Installed ==="
+echo "  Schedule:  Every 6 hours + on login"
+echo "  Plist:     $PLIST_PATH"
+echo "  Log:       $LOG_PATH"
 echo ""
 echo "Commands:"
-echo "  Run sync now:      launchctl start $INGEST_PLIST_NAME"
-echo "  Check ingest log:  tail -f $INGEST_LOG_PATH"
-echo "  Check trigger log: tail -f $TRIGGER_LOG_PATH"
-echo "  Stop ingest:       launchctl unload $INGEST_PLIST_PATH"
-echo "  Stop trigger:      launchctl unload $TRIGGER_PLIST_PATH"
+echo "  Run now:   launchctl start $PLIST_NAME"
+echo "  Check log: tail -f $LOG_PATH"
+echo "  Stop:      launchctl unload $PLIST_PATH"

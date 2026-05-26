@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSyncContext } from "@/components/sync-provider";
 import {
   AlertTriangle,
   Info,
@@ -239,7 +238,6 @@ async function fetchUsageStats(): Promise<UsageStats | null> {
 }
 
 export default function RecommendationsPage() {
-  const { syncVersion } = useSyncContext();
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [score, setScore] = useState<number>(0);
@@ -262,7 +260,7 @@ export default function RecommendationsPage() {
       setLoading(false);
     }
     load();
-  }, [syncVersion]);
+  }, []);
 
   if (loading) {
     return (

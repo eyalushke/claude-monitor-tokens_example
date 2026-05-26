@@ -4,7 +4,7 @@ import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SyncProvider } from "@/components/sync-provider";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,15 +47,13 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col md:flex-row">
         <ThemeProvider>
-          <SyncProvider>
-            <Sidebar />
-            <div className="flex flex-1 flex-col min-h-dvh pb-16 md:pb-0 md:ml-16 lg:ml-56">
-              <Header />
-              <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
-                {children}
-              </main>
-            </div>
-          </SyncProvider>
+          <Sidebar />
+          <div className="flex flex-1 flex-col min-h-dvh pb-16 md:pb-0 md:ml-16 lg:ml-56">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+              {children}
+            </main>
+          </div>
         </ThemeProvider>
       </body>
     </html>

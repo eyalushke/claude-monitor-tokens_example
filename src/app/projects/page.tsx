@@ -21,8 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
 import type { DailyAggregate } from "@/lib/supabase/types";
-import { useSyncContext } from "@/components/sync-provider";
-
 // ─── Sample Data ───────────────────────────────────────────────
 
 const SAMPLE_PROJECT_DATA = [
@@ -216,7 +214,6 @@ function CustomTreemapContent({
 // ─── Page Component ────────────────────────────────────────────
 
 export default function ProjectsPage() {
-  const { syncVersion } = useSyncContext();
   const [projectData, setProjectData] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -256,7 +253,7 @@ export default function ProjectsPage() {
     }
 
     fetchData();
-  }, [syncVersion]);
+  }, []);
 
   const totalTokens = projectData.reduce((s, p) => s + p.tokens, 0);
   const totalSessions = projectData.reduce((s, p) => s + p.sessions, 0);

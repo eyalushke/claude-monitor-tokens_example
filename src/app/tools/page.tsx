@@ -26,8 +26,6 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
 import type { ToolDailyAggregate } from "@/lib/supabase/types";
-import { useSyncContext } from "@/components/sync-provider";
-
 // ─── Sample Data ───────────────────────────────────────────────
 
 const SAMPLE_TOOL_DATA = [
@@ -81,7 +79,6 @@ function aggregateToolData(rows: ToolDailyAggregate[]): ToolRow[] {
 // ─── Page Component ────────────────────────────────────────────
 
 export default function ToolsPage() {
-  const { syncVersion } = useSyncContext();
   const [toolData, setToolData] = useState<ToolRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -121,7 +118,7 @@ export default function ToolsPage() {
     }
 
     fetchData();
-  }, [syncVersion]);
+  }, []);
 
   const totalTokens = toolData.reduce((s, t) => s + t.tokens, 0);
   const totalInvocations = toolData.reduce((s, t) => s + t.invocations, 0);
