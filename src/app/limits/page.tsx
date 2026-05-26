@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { formatNumber as formatNum, utcToLocalTime, utcToLocalHour } from "@/lib/utils";
 import {
-  AlertTriangle, Zap, Clock, TrendingUp, ChevronDown, ChevronUp,
+  AlertTriangle, Clock, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   Activity, Wrench, FolderOpen,
 } from "lucide-react";
@@ -571,58 +571,34 @@ export default function LimitsPage() {
     <div className="space-y-6">
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-red-500/10">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{totalThrottledDays}</div>
-                <div className="text-xs text-muted-foreground">Days actually throttled</div>
-              </div>
-            </div>
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-red-400 font-medium mb-2">Days Throttled</div>
+            <div className="text-2xl font-bold tabular-nums text-red-400">{totalThrottledDays}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">total days</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-yellow-500/10">
-                <Zap className="h-5 w-5 text-yellow-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{totalThrottleEvents}</div>
-                <div className="text-xs text-muted-foreground">Total throttle events</div>
-              </div>
-            </div>
+        <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-600/5 border-yellow-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-yellow-400 font-medium mb-2">Throttle Events</div>
+            <div className="text-2xl font-bold tabular-nums text-yellow-400">{totalThrottleEvents}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">total events</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-blue-500/10">
-                <Clock className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{heaviestDay ? formatNum(heaviestDay.totalTokens) : "-"}</div>
-                <div className="text-xs text-muted-foreground">Peak day: {heaviestDay?.date || "-"}</div>
-              </div>
-            </div>
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium mb-2">Peak Day</div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">{heaviestDay ? formatNum(heaviestDay.totalTokens) : "-"}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{heaviestDay?.date || "-"}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-green-500/10">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">
-                  {days.length > 0 ? formatNum(Math.round(days.reduce((s, d) => s + d.totalTokens, 0) / days.length)) : "-"}
-                </div>
-                <div className="text-xs text-muted-foreground">Avg daily tokens</div>
-              </div>
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-green-400 font-medium mb-2">Avg Tokens</div>
+            <div className="text-2xl font-bold tabular-nums text-green-400">
+              {days.length > 0 ? formatNum(Math.round(days.reduce((s, d) => s + d.totalTokens, 0) / days.length)) : "-"}
             </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">per day</div>
           </CardContent>
         </Card>
       </div>
@@ -632,8 +608,8 @@ export default function LimitsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">Hourly Token Usage by Project</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Hourly Token Usage by Project</CardTitle>
+              <CardDescription className="text-xs">
                 {hourlySessions} sessions, {hourlyMessages} messages
                 {days.find(d => d.date === selectedDate)?.wasThrottled && (
                   <Badge variant="destructive" className="ml-2 text-[10px]">
@@ -668,13 +644,21 @@ export default function LimitsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={hourlyProjectData}>
+                <defs>
+                  {hourlyProjectNames.map((name, i) => (
+                    <linearGradient key={name} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={PROJECT_COLORS[i % PROJECT_COLORS.length]} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={PROJECT_COLORS[i % PROJECT_COLORS.length]} stopOpacity={0.5} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="hour" fontSize={10} />
-                <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} />
-                <Tooltip formatter={(v: any) => formatNum(Number(v))} />
+                <XAxis dataKey="hour" fontSize={10} tick={{ fill: "#888" }} />
+                <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} tick={{ fill: "#888" }} />
+                <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => formatNum(Number(v))} />
                 <Legend />
                 {hourlyProjectNames.map((name, i) => (
-                  <Bar key={name} dataKey={name} stackId="p" fill={PROJECT_COLORS[i % PROJECT_COLORS.length]} />
+                  <Bar key={name} dataKey={name} stackId="p" fill={`url(#grad-${i})`} />
                 ))}
                 {hourlyProjectData.some((d: any) => d.Other > 0) && (
                   <Bar dataKey="Other" stackId="p" fill="#6B7280" radius={[2, 2, 0, 0]} />
@@ -698,8 +682,8 @@ export default function LimitsPage() {
       {/* Day-by-Day Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Day-by-Day Limit Analysis</CardTitle>
-          <CardDescription>Click any day to see hourly breakdown, rolling 5hr window, and which tools/projects consumed the most.</CardDescription>
+          <CardTitle className="text-sm">Day-by-Day Limit Analysis</CardTitle>
+          <CardDescription className="text-xs">Click any day to see hourly breakdown, rolling 5hr window, and which tools/projects consumed the most.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {days.map((day) => {
@@ -808,9 +792,9 @@ export default function LimitsPage() {
                                               <ResponsiveContainer width="100%" height={180}>
                                                 <AreaChart data={drilldown.cumulativeTimeline}>
                                                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                                                  <XAxis dataKey="time" fontSize={9} />
-                                                  <YAxis fontSize={9} tickFormatter={(v: any) => formatNum(v)} />
-                                                  <Tooltip formatter={(v: any) => formatNum(Number(v))} />
+                                                  <XAxis dataKey="time" fontSize={9} tick={{ fill: "#888" }} />
+                                                  <YAxis fontSize={9} tickFormatter={(v: any) => formatNum(v)} tick={{ fill: "#888" }} />
+                                                  <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => formatNum(Number(v))} />
                                                   <Legend />
                                                   {drilldown.cumulativeProjects.map((proj, i) => (
                                                     <Area key={proj} type="monotone" dataKey={proj} stackId="cum" stroke={PROJECT_COLORS[i % PROJECT_COLORS.length]} fill={PROJECT_COLORS[i % PROJECT_COLORS.length]} fillOpacity={0.4} />
@@ -932,9 +916,9 @@ export default function LimitsPage() {
                           <ResponsiveContainer width="100%" height={200}>
                             <AreaChart data={dayDetail.hours}>
                               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                              <XAxis dataKey="label" fontSize={10} />
-                              <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} />
-                              <Tooltip formatter={(v: any) => formatNum(Number(v))} />
+                              <XAxis dataKey="label" fontSize={10} tick={{ fill: "#888" }} />
+                              <YAxis fontSize={10} tickFormatter={(v: any) => formatNum(v)} tick={{ fill: "#888" }} />
+                              <Tooltip contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }} formatter={(v: any) => formatNum(Number(v))} />
                               <Area type="monotone" dataKey="inputTokens" name="Input" stackId="h" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.4} />
                               <Area type="monotone" dataKey="outputTokens" name="Output" stackId="h" stroke="#10B981" fill="#10B981" fillOpacity={0.4} />
                               <Area type="monotone" dataKey="cacheCreate" name="Cache Create" stackId="c" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.2} />

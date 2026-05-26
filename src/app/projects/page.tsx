@@ -8,7 +8,6 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { FolderOpen, Layers, DollarSign } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import {
   Card,
@@ -19,7 +18,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatCard } from "@/components/cards/stat-card";
 import { useDateRange } from "@/hooks/use-date-range";
 import type { DailyAggregate } from "@/lib/supabase/types";
 // ─── Sample Data ───────────────────────────────────────────────
@@ -288,14 +286,14 @@ export default function ProjectsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-lg font-bold tracking-tight">
             Projects Breakdown
           </h1>
           <p className="text-sm text-muted-foreground">
             Token usage distribution across your projects
           </p>
         </div>
-        <Badge variant="outline" className="gap-1.5 text-xs">
+        <Badge variant="outline" className="gap-1.5 text-[10px] border-green-500/30 text-green-500">
           <div
             className={`h-2 w-2 rounded-full ${isLive ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`}
           />
@@ -305,33 +303,33 @@ export default function ProjectsPage() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Projects"
-          value={String(projectData.length)}
-          subtitle={`${formatNumber(totalTokens)} total tokens`}
-          icon={FolderOpen}
-          accentColor="bg-violet-100 text-violet-600"
-        />
-        <StatCard
-          title="Total Sessions"
-          value={String(totalSessions)}
-          subtitle="across all projects"
-          icon={Layers}
-          accentColor="bg-blue-100 text-blue-600"
-        />
-        <StatCard
-          title="Est. Total Cost"
-          value={formatCost(totalTokens)}
-          subtitle="equivalent API pricing"
-          icon={DollarSign}
-          accentColor="bg-emerald-100 text-emerald-600"
-        />
+        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-violet-400 font-medium mb-2">Total Tokens</div>
+            <div className="text-2xl font-bold tabular-nums text-violet-400">{formatNumber(totalTokens)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{projectData.length} projects</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium mb-2">Total Sessions</div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">{totalSessions}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">across all projects</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-amber-400 font-medium mb-2">Top Project</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-400">{projectData[0]?.name ?? "—"}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{projectData[0] ? formatNumber(projectData[0].tokens) + " tokens" : "no data"}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Section A: Project Token Usage Treemap */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Project Token Usage</CardTitle>
+          <CardTitle className="text-sm">Project Token Usage</CardTitle>
           <CardDescription>
             Size represents relative token consumption per project
           </CardDescription>
@@ -345,6 +343,7 @@ export default function ProjectsPage() {
               content={<CustomTreemapContent />}
             >
               <Tooltip
+                contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }}
                 formatter={(value: any) => [
                   formatNumber(Number(value)),
                   "Tokens",
@@ -358,7 +357,7 @@ export default function ProjectsPage() {
       {/* Section B: Project Comparison Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Project Comparison</CardTitle>
+          <CardTitle className="text-sm">Project Comparison</CardTitle>
           <CardDescription>
             Detailed breakdown of each project&apos;s resource usage
           </CardDescription>
@@ -386,7 +385,7 @@ export default function ProjectsPage() {
                   return (
                     <tr
                       key={proj.name}
-                      className="border-b border-border/50 hover:bg-muted/50"
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                     >
                       <td className="py-2.5 font-medium">
                         <div className="flex items-center gap-2">
@@ -399,13 +398,13 @@ export default function ProjectsPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="text-right py-2.5">{proj.sessions}</td>
-                      <td className="text-right py-2.5">{proj.messages}</td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-2.5 tabular-nums">{proj.sessions}</td>
+                      <td className="text-right py-2.5 tabular-nums">{proj.messages}</td>
+                      <td className="text-right py-2.5 font-mono tabular-nums">
                         {formatNumber(proj.tokens)}
                       </td>
-                      <td className="text-right py-2.5">{pct}%</td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-2.5 tabular-nums">{pct}%</td>
+                      <td className="text-right py-2.5 font-mono tabular-nums">
                         {formatCost(proj.tokens)}
                       </td>
                       <td className="py-2.5 pl-4 w-36">
