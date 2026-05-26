@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useSyncContext } from "@/components/sync-provider";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
@@ -110,6 +111,7 @@ function getSeverityBg(severity: string): string {
 }
 
 export default function LimitsPage() {
+  const { syncVersion } = useSyncContext();
   const [days, setDays] = useState<DayData[]>([]);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null);
@@ -117,10 +119,6 @@ export default function LimitsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [drilldown, setDrilldown] = useState<ThrottleDrilldown | null>(null);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
-
-  useEffect(() => {
-    loadDays();
-  }, []);
 
   async function loadDays() {
     try {
@@ -197,6 +195,11 @@ export default function LimitsPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const id = setTimeout(loadDays, 0);
+    return () => clearTimeout(id);
+  }, [syncVersion]);
 
   async function loadDayDetail(date: string) {
     if (expandedDay === date) {

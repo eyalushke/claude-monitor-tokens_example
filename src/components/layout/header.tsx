@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Clock, Sun, Moon } from "lucide-react";
+import { Clock, Sun, Moon, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useSyncContext } from "@/components/sync-provider";
 import {
   Select,
   SelectContent,
@@ -35,14 +36,17 @@ export function Header() {
   const pathname = usePathname();
   const { range, setRange } = useDateRange();
   const { theme, toggleTheme } = useTheme();
+  const { syncState, isSyncing, triggerSync } = useSyncContext();
 
   const title = pageTitles[pathname] ?? "Dashboard";
-  const lastSync = new Date().toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const lastSync = syncState.lastSyncAt
+    ? new Date(syncState.lastSyncAt).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Never";
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-3 sm:px-4 lg:px-6">
@@ -74,6 +78,23 @@ export function Header() {
           aria-label="Toggle theme"
         >
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
+
+        {/* Sync trigger button */}
+        <button
+          onClick={triggerSync}
+          disabled={isSyncing}
+          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={syncState.error || (isSyncing ? "Sync in progress..." : "Trigger data sync")}
+        >
+          {isSyncing ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : syncState.status === "server_unavailable" ? (
+            <AlertCircle className="size-3.5 text-amber-500" />
+          ) : (
+            <RefreshCw className="size-3.5" />
+          )}
+          <span className="hidden sm:inline">{isSyncing ? "Syncing..." : "Sync"}</span>
         </button>
 
         {/* Last sync badge - hide on small screens */}

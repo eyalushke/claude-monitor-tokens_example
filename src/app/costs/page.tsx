@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/cards/stat-card";
 import { MODEL_PRICING } from "@/lib/constants";
 import type { DailyAggregate } from "@/lib/supabase/types";
+import { useSyncContext } from "@/components/sync-provider";
 
 // ─── Sample Data ───────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ function aggregateCosts(rows: DailyAggregate[]): CostRow[] {
 // ─── Page Component ────────────────────────────────────────────
 
 export default function CostsPage() {
+  const { syncVersion } = useSyncContext();
   const [costData, setCostData] = useState<CostRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
@@ -160,7 +162,7 @@ export default function CostsPage() {
     }
 
     fetchData();
-  }, []);
+  }, [syncVersion]);
 
   // Compute KPIs from cost data
   const todayCost = costData.length > 0

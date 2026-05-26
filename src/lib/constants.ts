@@ -49,3 +49,10 @@ export function estimateCost(input: number, output: number, cacheRead: number, c
   const pricing = MODEL_PRICING[getModelPricingKey(model)];
   return (input * pricing.input + output * pricing.output + cacheRead * pricing.cacheRead + cacheCreate * pricing.cacheCreation) / 1_000_000;
 }
+
+export const SYNC_CONFIG = {
+  triggerUrl: process.env.NEXT_PUBLIC_TRIGGER_URL || "http://127.0.0.1:7829",
+  debounceMinutes: 5,
+  pollIntervalMs: 2000,
+  maxPollDurationMs: 120_000,
+} as const;
