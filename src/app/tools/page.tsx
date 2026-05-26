@@ -11,8 +11,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import { Wrench, Hash, Percent } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import {
   Card,
@@ -22,9 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatCard } from "@/components/cards/stat-card";
 import { useDateRange } from "@/hooks/use-date-range";
 import type { ToolDailyAggregate } from "@/lib/supabase/types";
 // ─── Sample Data ───────────────────────────────────────────────
@@ -76,6 +76,13 @@ function aggregateToolData(rows: ToolDailyAggregate[]): ToolRow[] {
     .map(([name, v]) => ({ name, ...v }))
     .sort((a, b) => b.tokens - a.tokens);
 }
+
+// ─── Dark tooltip style ───────────────────────────────────────
+const darkTooltipStyle = {
+  background: "#1a1a2e",
+  border: "1px solid #333",
+  borderRadius: 8,
+};
 
 // ─── Page Component ────────────────────────────────────────────
 
@@ -129,10 +136,14 @@ export default function ToolsPage() {
 
   // Sorted by tokens (descending) for horizontal bar chart
   const tokenChartData = [...toolData].sort((a, b) => b.tokens - a.tokens);
-  // Sorted by invocations (descending) for vertical bar chart
-  const invocationChartData = [...toolData].sort(
-    (a, b) => b.invocations - a.invocations
-  );
+
+  // Donut chart data: top 5 tools + "Other"
+  const top5 = tokenChartData.slice(0, 5);
+  const otherTokens = tokenChartData.slice(5).reduce((s, t) => s + t.tokens, 0);
+  const donutData = [
+    ...top5.map((t) => ({ name: t.name, value: t.tokens, color: TOOL_COLORS[t.name] || "#6B7280" })),
+    ...(otherTokens > 0 ? [{ name: "Other", value: otherTokens, color: "#4B5563" }] : []),
+  ];
 
   if (loading) {
     return (
@@ -166,160 +177,205 @@ export default function ToolsPage() {
         </Badge>
       </div>
 
-      {/* KPI Row */}
+      {/* KPI Row - Gradient Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Tool Tokens"
-          value={formatNumber(totalTokens)}
-          subtitle={`across ${toolData.length} tools`}
-          icon={Wrench}
-          accentColor="bg-violet-100 text-violet-600"
-        />
-        <StatCard
-          title="Total Invocations"
-          value={formatNumber(totalInvocations)}
-          subtitle={`${topTool ? topTool.name + " is most called" : ""}`}
-          icon={Hash}
-          accentColor="bg-blue-100 text-blue-600"
-        />
-        <StatCard
-          title="Highest Token Tool"
-          value={topTool?.name ?? "-"}
-          subtitle={`${topTool ? formatNumber(topTool.tokens) + " tokens (" + ((topTool.tokens / totalTokens) * 100).toFixed(0) + "%)" : ""}`}
-          icon={Percent}
-          accentColor="bg-emerald-100 text-emerald-600"
-        />
+        {/* Total Tool Tokens */}
+        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-violet-400 font-medium mb-2">Total Tool Tokens</div>
+            <div className="text-2xl font-bold tabular-nums text-violet-400">{formatNumber(totalTokens)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">across {toolData.length} tools</div>
+          </CardContent>
+        </Card>
+
+        {/* Total Invocations */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium mb-2">Total Invocations</div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">{formatNumber(totalInvocations)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{topTool ? topTool.name + " is most called" : ""}</div>
+          </CardContent>
+        </Card>
+
+        {/* Top Tool */}
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-amber-400 font-medium mb-2">Highest Token Tool</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-400">{topTool?.name ?? "-"}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {topTool ? formatNumber(topTool.tokens) + " tokens (" + ((topTool.tokens / totalTokens) * 100).toFixed(0) + "%)" : ""}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Section A: Tool Token Consumption - Horizontal Bar Chart */}
+      {/* Charts Row: Horizontal Bar + Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Section A: Tool Token Consumption - Horizontal Bar Chart */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm">Tool Token Consumption</CardTitle>
+            <CardDescription className="text-xs">
+              Which tools consume the most tokens from your budget
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={tokenChartData} layout="vertical">
+                <defs>
+                  {tokenChartData.map((entry) => {
+                    const color = TOOL_COLORS[entry.name] || "#8B5CF6";
+                    return (
+                      <linearGradient key={entry.name} id={`grad-${entry.name}`} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.8} />
+                        <stop offset="100%" stopColor={color} stopOpacity={1} />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis
+                  type="number"
+                  fontSize={11}
+                  tickFormatter={(v: any) => formatNumber(v)}
+                  stroke="#666"
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  fontSize={11}
+                  width={80}
+                  stroke="#666"
+                />
+                <Tooltip
+                  contentStyle={darkTooltipStyle}
+                  formatter={(value: any) => [
+                    formatNumber(Number(value)),
+                    "Tokens",
+                  ]}
+                  labelFormatter={(label: any) => `Tool: ${label}`}
+                />
+                <Bar
+                  dataKey="tokens"
+                  name="Associated Tokens"
+                  radius={[0, 6, 6, 0]}
+                >
+                  {tokenChartData.map((entry) => (
+                    <Cell key={entry.name} fill={`url(#grad-${entry.name})`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Section B: Token Share Donut Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Token Share</CardTitle>
+            <CardDescription className="text-xs">
+              Top 5 tools by token consumption
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={donutData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  strokeWidth={2}
+                  stroke="#1a1a2e"
+                >
+                  {donutData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={darkTooltipStyle}
+                  formatter={(value: any, name: any) => [
+                    formatNumber(Number(value)),
+                    name,
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Legend */}
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 mt-2">
+              {donutData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                  {entry.name}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section C: Ranked Tool List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tool Token Consumption</CardTitle>
-          <CardDescription>
-            Which tools consume the most tokens from your budget
+          <CardTitle className="text-sm">Tool Rankings</CardTitle>
+          <CardDescription className="text-xs">
+            All tools ranked by token consumption with invocation counts
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={tokenChartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis
-                type="number"
-                fontSize={12}
-                tickFormatter={(v: any) => formatNumber(v)}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                fontSize={12}
-                width={90}
-              />
-              <Tooltip
-                formatter={(value: any) => [
-                  formatNumber(Number(value)),
-                  "Tokens",
-                ]}
-                labelFormatter={(label: any) => `Tool: ${label}`}
-              />
-              <Bar
-                dataKey="tokens"
-                name="Associated Tokens"
-                radius={[0, 4, 4, 0]}
-                fill="#8B5CF6"
-              >
-                {tokenChartData.map((entry) => {
-                  const color = TOOL_COLORS[entry.name] || "#8B5CF6";
-                  return (
-                    <rect key={entry.name} fill={color} />
-                  );
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+          <div className="space-y-1">
+            {toolData.map((tool, index) => {
+              const pct = totalTokens > 0 ? (tool.tokens / totalTokens) * 100 : 0;
+              const color = TOOL_COLORS[tool.name] || "#6B7280";
+              return (
+                <div
+                  key={tool.name}
+                  className="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  {/* Rank */}
+                  <span className="text-xs font-medium text-muted-foreground w-7 text-right tabular-nums">
+                    #{index + 1}
+                  </span>
 
-      {/* Section B: Tool Detail Cards */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Tool Details</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {toolData.map((tool) => {
-            const pct =
-              totalTokens > 0
-                ? ((tool.tokens / totalTokens) * 100).toFixed(1)
-                : "0";
-            return (
-              <Card key={tool.name}>
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{
-                          backgroundColor:
-                            TOOL_COLORS[tool.name] || "#6B7280",
-                        }}
-                      />
-                      <span className="font-semibold">{tool.name}</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {formatNumber(tool.invocations)} calls
-                    </Badge>
+                  {/* Color dot + Name */}
+                  <div className="flex items-center gap-2 w-24 shrink-0">
+                    <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-sm font-medium truncate">{tool.name}</span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Token share</span>
-                      <span>{pct}%</span>
-                    </div>
-                    <Progress value={Number(pct)} />
-                    <div className="text-xs text-muted-foreground">
-                      {formatNumber(tool.tokens)} tokens total
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Section C: Tool Invocation Counts - Vertical Bar Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tool Invocation Counts</CardTitle>
-          <CardDescription>
-            How frequently each tool is called
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={invocationChartData}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis
-                dataKey="name"
-                fontSize={11}
-                angle={-30}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis
-                fontSize={12}
-                tickFormatter={(v: any) => formatNumber(v)}
-              />
-              <Tooltip
-                formatter={(value: any) => [
-                  Number(value).toLocaleString(),
-                  "Invocations",
-                ]}
-              />
-              <Bar
-                dataKey="invocations"
-                name="Invocations"
-                fill="#3B82F6"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+                  {/* Progress bar */}
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        backgroundColor: color,
+                        opacity: 0.8,
+                      }}
+                    />
+                  </div>
+
+                  {/* Percentage */}
+                  <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">
+                    {pct.toFixed(1)}%
+                  </span>
+
+                  {/* Token count */}
+                  <span className="text-xs font-medium tabular-nums w-16 text-right">
+                    {formatNumber(tool.tokens)}
+                  </span>
+
+                  {/* Invocation count */}
+                  <span className="text-[11px] text-muted-foreground tabular-nums w-20 text-right">
+                    {formatNumber(tool.invocations)} calls
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
     </div>

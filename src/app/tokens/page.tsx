@@ -244,9 +244,25 @@ export default function TokensPage() {
 
   const totalTokens = tokenTypePie.reduce((s: number, d: any) => s + d.value, 0);
 
+  // Compute composition percentages for the stacked bar
+  const compositionSegments = totalTokens > 0
+    ? [
+        { label: "Input", value: tokenTypePie[0]?.value ?? 0, color: TOKEN_COLORS.input, pct: ((tokenTypePie[0]?.value ?? 0) / totalTokens) * 100 },
+        { label: "Output", value: tokenTypePie[1]?.value ?? 0, color: TOKEN_COLORS.output, pct: ((tokenTypePie[1]?.value ?? 0) / totalTokens) * 100 },
+        { label: "Cache Read", value: tokenTypePie[2]?.value ?? 0, color: TOKEN_COLORS.cacheRead, pct: ((tokenTypePie[2]?.value ?? 0) / totalTokens) * 100 },
+        { label: "Cache Create", value: tokenTypePie[3]?.value ?? 0, color: TOKEN_COLORS.cacheCreation, pct: ((tokenTypePie[3]?.value ?? 0) / totalTokens) * 100 },
+      ]
+    : [];
+
+  // Output ratio
+  const outputTokens = tokenTypePie[1]?.value ?? 0;
+  const outputRatio = totalTokens > 0 ? ((outputTokens / totalTokens) * 100).toFixed(1) : "0";
+
   if (loading) {
     return <LoadingSkeleton />;
   }
+
+  const darkTooltipStyle = { background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 };
 
   return (
     <div className="space-y-6">
@@ -256,12 +272,80 @@ export default function TokensPage() {
         </div>
       )}
 
-      {/* ── Token Type Distribution + Cache Efficiency ── */}
+      {/* -- KPI Gradient Cards -- */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-violet-400 font-medium mb-2">Cache Hit Rate</div>
+            <div className="text-2xl font-bold tabular-nums text-violet-400">{avgCacheRate}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">avg over period</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-emerald-400 font-medium mb-2">Est. Savings</div>
+            <div className="text-2xl font-bold tabular-nums text-emerald-400">${weeklySavings.toFixed(2)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">from cache hits</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium mb-2">Total Tokens</div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">{formatNumber(totalTokens)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">all types combined</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-amber-400 font-medium mb-2">Output Ratio</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-400">{outputRatio}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">of total tokens</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* -- Token Composition Stacked Bar -- */}
+      {compositionSegments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Token Composition</CardTitle>
+            <CardDescription className="text-xs">Breakdown of {formatNumber(totalTokens)} tokens by type</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full h-6 rounded-full overflow-hidden flex">
+              {compositionSegments.map((seg, i) => (
+                <div
+                  key={seg.label}
+                  className="h-full transition-all"
+                  style={{
+                    width: `${seg.pct}%`,
+                    backgroundColor: seg.color,
+                    borderRadius: i === 0 ? "9999px 0 0 9999px" : i === compositionSegments.length - 1 ? "0 9999px 9999px 0" : undefined,
+                  }}
+                  title={`${seg.label}: ${formatNumber(seg.value)} (${seg.pct.toFixed(1)}%)`}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+              {compositionSegments.map((seg) => (
+                <div key={seg.label} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                  <span className="text-[11px] text-muted-foreground">
+                    {seg.label}: {formatNumber(seg.value)} ({seg.pct.toFixed(1)}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* -- Token Type Distribution + Cache Efficiency -- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Token Type Distribution (7 days)</CardTitle>
-            <CardDescription>Total: {formatNumber(totalTokens)} tokens</CardDescription>
+            <CardTitle className="text-sm">Token Type Distribution</CardTitle>
+            <CardDescription className="text-xs">Total: {formatNumber(totalTokens)} tokens</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -277,12 +361,16 @@ export default function TokensPage() {
                   label={({ name, percent }: any) =>
                     `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
+                  fontSize={10}
                 >
                   {tokenTypePie.map((entry: any, i: number) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
+                <Tooltip
+                  formatter={(v: any) => formatNumber(Number(v))}
+                  contentStyle={darkTooltipStyle}
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -290,35 +378,34 @@ export default function TokensPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Cache Efficiency</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm">Cache Efficiency</CardTitle>
+            <CardDescription className="text-xs">
               cache_read / (cache_read + input) -- higher is better
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-green-500">{avgCacheRate}%</div>
-                <div className="text-xs text-muted-foreground">Avg Cache Hit Rate</div>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-blue-500">${weeklySavings.toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground">Est. Weekly Savings</div>
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={cacheEfficiency}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="date" fontSize={11} />
-                <YAxis domain={[50, 100]} fontSize={11} tickFormatter={(v: any) => `${v}%`} />
-                <Tooltip formatter={(v: any) => `${v}%`} />
+                <defs>
+                  <linearGradient id="gradCacheRate" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.6} />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="date" fontSize={10} tick={{ fill: "#94A3B8" }} />
+                <YAxis domain={[50, 100]} fontSize={10} tickFormatter={(v: any) => `${v}%`} tick={{ fill: "#94A3B8" }} />
+                <Tooltip
+                  formatter={(v: any) => `${v}%`}
+                  contentStyle={darkTooltipStyle}
+                />
                 <Area
                   type="monotone"
                   dataKey="rate"
                   name="Cache Hit Rate"
                   stroke="#10B981"
-                  fill="#10B981"
-                  fillOpacity={0.2}
+                  fill="url(#gradCacheRate)"
+                  strokeWidth={2}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -326,51 +413,64 @@ export default function TokensPage() {
         </Card>
       </div>
 
-      {/* ── Model Comparison Table ── */}
+      {/* -- Model Comparison Table -- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Model Token Comparison</CardTitle>
-          <CardDescription>Token breakdown and equivalent API cost per model (7 days)</CardDescription>
+          <CardTitle className="text-sm">Model Token Comparison</CardTitle>
+          <CardDescription className="text-xs">Token breakdown and equivalent API cost per model</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Model</th>
-                  <th className="text-right py-2 font-medium">Input</th>
-                  <th className="text-right py-2 font-medium">Output</th>
-                  <th className="text-right py-2 font-medium">Cache Read</th>
-                  <th className="text-right py-2 font-medium">Cache Create</th>
-                  <th className="text-right py-2 font-medium">Total</th>
-                  <th className="text-right py-2 font-medium">% of Total</th>
-                  <th className="text-right py-2 font-medium">Est. Cost</th>
+                <tr className="text-muted-foreground border-b border-border/30">
+                  <th className="text-left py-2.5 px-3 font-medium">Model</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Input</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Output</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Cache Read</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Cache Create</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Total</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Share</th>
+                  <th className="text-right py-2.5 px-3 font-medium">Est. Cost</th>
                 </tr>
               </thead>
               <tbody>
-                {modelTable.map((row) => (
-                  <tr key={row.model} className="border-b border-border/50 hover:bg-muted/50">
-                    <td className="py-2 font-medium">
+                {modelTable.map((row, idx) => (
+                  <tr
+                    key={row.model}
+                    className={`transition-colors hover:bg-muted/60 ${idx % 2 === 0 ? "bg-muted/20" : ""}`}
+                  >
+                    <td className="py-2.5 px-3 font-medium">
                       <div className="flex items-center gap-2">
                         <div
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          className="h-2 w-2 rounded-full shrink-0"
                           style={{ backgroundColor: row.color }}
                         />
-                        {row.model}
+                        <span className="text-xs">{row.model}</span>
                       </div>
                     </td>
-                    <td className="text-right py-2 font-mono">{formatNumber(row.input)}</td>
-                    <td className="text-right py-2 font-mono">{formatNumber(row.output)}</td>
-                    <td className="text-right py-2 font-mono">{formatNumber(row.cacheRead)}</td>
-                    <td className="text-right py-2 font-mono">{formatNumber(row.cacheCreation)}</td>
-                    <td className="text-right py-2 font-mono font-bold">{formatNumber(row.total)}</td>
-                    <td className="text-right py-2">{row.pctOfTotal}%</td>
-                    <td className="text-right py-2 font-mono">${row.cost.toFixed(2)}</td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums text-muted-foreground">{formatNumber(row.input)}</td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums text-muted-foreground">{formatNumber(row.output)}</td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums text-muted-foreground">{formatNumber(row.cacheRead)}</td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums text-muted-foreground">{formatNumber(row.cacheCreation)}</td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums font-semibold">{formatNumber(row.total)}</td>
+                    <td className="text-right py-2.5 px-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${row.pctOfTotal}%`, backgroundColor: row.color }}
+                          />
+                        </div>
+                        <span className="text-muted-foreground tabular-nums w-8 text-right">{row.pctOfTotal}%</span>
+                      </div>
+                    </td>
+                    <td className="text-right py-2.5 px-3 font-mono tabular-nums">${row.cost.toFixed(2)}</td>
                   </tr>
                 ))}
                 {modelTable.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground text-xs">
                       No model data available
                     </td>
                   </tr>
@@ -391,6 +491,23 @@ export default function TokensPage() {
 function LoadingSkeleton() {
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="pt-4 pb-3">
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-7 w-16 mb-1" />
+              <Skeleton className="h-2.5 w-24" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <Skeleton className="h-6 w-full rounded-full mb-3" />
+          <Skeleton className="h-4 w-48" />
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardContent className="pt-6">
@@ -398,12 +515,8 @@ function LoadingSkeleton() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-            <Skeleton className="h-[160px] w-full" />
+          <CardContent className="pt-6">
+            <Skeleton className="h-[240px] w-full" />
           </CardContent>
         </Card>
       </div>

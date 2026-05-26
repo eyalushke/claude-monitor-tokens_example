@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatCard } from "@/components/cards/stat-card";
 import { useDateRange } from "@/hooks/use-date-range";
 import { MODEL_PRICING } from "@/lib/constants";
 import type { DailyAggregate } from "@/lib/supabase/types";
@@ -183,6 +182,12 @@ export default function CostsPage() {
   // Token count estimate (rough: $1 ~ 66K tokens at opus rates)
   const totalTokensEstimate = weekCost * 66_000;
 
+  // Value analysis derived values
+  const savings = projectedMonth - 100;
+  const savingsPercent = projectedMonth > 0 ? ((savings / projectedMonth) * 100) : 0;
+  const costPerCommit = avgDaily > 0 ? (avgDaily / 14) : 0;
+  const dailyTokens = totalTokensEstimate / (costData.length || 1);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -204,7 +209,7 @@ export default function CostsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cost Analysis</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Equivalent API pricing for your Max5 flat-rate plan ($100/mo)
           </p>
         </div>
@@ -216,96 +221,136 @@ export default function CostsPage() {
         </Badge>
       </div>
 
-      {/* Section A: Cost KPIs */}
+      {/* Section A: Cost KPIs - Gradient Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Today"
-          value={`$${todayCost.toFixed(2)}`}
-          subtitle={todayCost < avgDaily ? "below average" : "above average"}
-          icon={DollarSign}
-          trend={todayCost < avgDaily ? "down" : "up"}
-          trendValue={`${Math.abs(((todayCost - avgDaily) / avgDaily) * 100).toFixed(0)}%`}
-          accentColor={
-            todayCost < avgDaily
-              ? "bg-emerald-100 text-emerald-600"
-              : "bg-red-100 text-red-600"
-          }
-        />
-        <StatCard
-          title="This Week"
-          value={`$${weekCost.toFixed(2)}`}
-          subtitle={`${costData.length}-day total`}
-          icon={Calendar}
-          accentColor="bg-blue-100 text-blue-600"
-        />
-        <StatCard
-          title="This Month"
-          value={`$${monthCost.toFixed(2)}`}
-          subtitle="estimated to date"
-          icon={CreditCard}
-          accentColor="bg-amber-100 text-amber-600"
-        />
-        <StatCard
-          title="Projected Month"
-          value={`$${projectedMonth.toFixed(2)}`}
-          subtitle="at current rate"
-          icon={TrendingUp}
-          trend={projectedMonth > 100 ? "up" : "down"}
-          trendValue={
-            projectedMonth > 100
-              ? `+${((projectedMonth - 100) / 100 * 100).toFixed(0)}%`
-              : `${((100 - projectedMonth) / 100 * 100).toFixed(0)}% under`
-          }
-          accentColor={
-            projectedMonth > 100
-              ? "bg-red-100 text-red-600"
-              : "bg-emerald-100 text-emerald-600"
-          }
-        />
+        {/* Today */}
+        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider text-emerald-400 font-medium">Today</div>
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400/60" />
+            </div>
+            <div className="text-2xl font-bold tabular-nums text-emerald-400">
+              ${todayCost.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {todayCost < avgDaily ? "below" : "above"} daily avg &middot; {Math.abs(((todayCost - avgDaily) / (avgDaily || 1)) * 100).toFixed(0)}%
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* This Week */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium">This Week</div>
+              <Calendar className="h-3.5 w-3.5 text-blue-400/60" />
+            </div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">
+              ${weekCost.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {costData.length}-day total
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* This Month */}
+        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider text-violet-400 font-medium">This Month</div>
+              <CreditCard className="h-3.5 w-3.5 text-violet-400/60" />
+            </div>
+            <div className="text-2xl font-bold tabular-nums text-violet-400">
+              ${monthCost.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              estimated to date
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Projected */}
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider text-amber-400 font-medium">Projected Month</div>
+              <TrendingUp className="h-3.5 w-3.5 text-amber-400/60" />
+            </div>
+            <div className="text-2xl font-bold tabular-nums text-amber-400">
+              ${projectedMonth.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {projectedMonth > 100
+                ? `+${((projectedMonth - 100) / 100 * 100).toFixed(0)}% over Max5`
+                : `${((100 - projectedMonth) / 100 * 100).toFixed(0)}% under Max5`}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Section B: Daily Cost by Model - Stacked Bar Chart */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Daily Cost by Model (Equivalent API Pricing)
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">
+            Daily Cost by Model
           </CardTitle>
-          <CardDescription>
-            What your usage would cost at API rates. Your Max5 plan is $100/mo
-            flat.
+          <CardDescription className="text-xs">
+            Equivalent API pricing. Your Max5 plan is $100/mo flat.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={costData}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="date" fontSize={12} />
+              <defs>
+                <linearGradient id="gradOpus" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.5} />
+                </linearGradient>
+                <linearGradient id="gradSonnet" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.5} />
+                </linearGradient>
+                <linearGradient id="gradHaiku" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#10B981" stopOpacity={0.5} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+              <XAxis dataKey="date" fontSize={11} tick={{ fill: "#888" }} />
               <YAxis
-                fontSize={12}
+                fontSize={11}
+                tick={{ fill: "#888" }}
                 tickFormatter={(v: any) => `$${v}`}
               />
               <Tooltip
+                contentStyle={{ background: "#1a1a2e", border: "1px solid #333", borderRadius: 8 }}
                 formatter={(v: any) => [`$${Number(v).toFixed(2)}`, undefined]}
                 labelFormatter={(label: any) => `Date: ${label}`}
+                labelStyle={{ color: "#aaa" }}
+                itemStyle={{ color: "#ddd" }}
               />
-              <Legend />
+              <Legend
+                wrapperStyle={{ fontSize: 11 }}
+              />
               <Bar
                 dataKey="opus"
                 name="Opus"
                 stackId="cost"
-                fill={MODEL_COLORS.opus}
+                fill="url(#gradOpus)"
               />
               <Bar
                 dataKey="sonnet"
                 name="Sonnet"
                 stackId="cost"
-                fill={MODEL_COLORS.sonnet}
+                fill="url(#gradSonnet)"
               />
               <Bar
                 dataKey="haiku"
                 name="Haiku"
                 stackId="cost"
-                fill={MODEL_COLORS.haiku}
+                fill="url(#gradHaiku)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -313,91 +358,127 @@ export default function CostsPage() {
         </CardContent>
       </Card>
 
-      {/* Section C: Value Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Value Analysis</CardTitle>
-          <CardDescription>
-            Max5 plan ($100/mo) vs equivalent API pricing
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-5 rounded-lg bg-green-500/10 border border-green-500/20">
-              <div className="flex justify-center mb-2">
-                <div className="rounded-full bg-green-500/20 p-2">
-                  <DollarSign className="h-5 w-5 text-green-500" />
+      {/* Section C: Plan Value & Usage Metrics - 2-column layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left: Plan Value */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Plan Value</CardTitle>
+            <CardDescription className="text-xs">
+              Max5 ($100/mo) vs equivalent API cost
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              {/* API Cost bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">API equivalent</span>
+                  <span className="text-xs font-mono font-medium text-foreground">${projectedMonth.toFixed(2)}</span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-muted/50 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
+                    style={{ width: `${Math.min((projectedMonth / Math.max(projectedMonth, 100)) * 100, 100)}%` }}
+                  />
                 </div>
               </div>
-              <div className="text-2xl font-bold text-green-500">
-                ${projectedMonth.toFixed(2)}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Equivalent API cost this month
-              </div>
-              <div className="text-xs text-green-600 mt-2 font-medium">
-                {projectedMonth > 100
-                  ? `Max5 saves you ~$${(projectedMonth - 100).toFixed(2)}/mo`
-                  : `API would be $${(100 - projectedMonth).toFixed(2)}/mo cheaper`}
+              {/* Max5 bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">Max5 plan</span>
+                  <span className="text-xs font-mono font-medium text-foreground">$100.00</span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-muted/50 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                    style={{ width: `${Math.min((100 / Math.max(projectedMonth, 100)) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="text-center p-5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <div className="flex justify-center mb-2">
-                <div className="rounded-full bg-blue-500/20 p-2">
-                  <Zap className="h-5 w-5 text-blue-500" />
-                </div>
+            <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
+              <div className={`text-lg font-bold tabular-nums ${savings > 0 ? "text-emerald-400" : "text-amber-400"}`}>
+                {savings > 0
+                  ? `Saving $${savings.toFixed(2)}/mo`
+                  : `$${Math.abs(savings).toFixed(2)}/mo over API`}
               </div>
-              <div className="text-2xl font-bold text-blue-500">
-                {formatNumber(totalTokensEstimate)}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Tokens used this week
-              </div>
-              <div className="text-xs text-blue-600 mt-2 font-medium">
-                ~{formatNumber(totalTokensEstimate / (costData.length || 1))}{" "}
-                tokens/day average
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                {savings > 0
+                  ? `${savingsPercent.toFixed(0)}% cheaper than API rates`
+                  : "API pricing would be more cost-effective"}
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="text-center p-5 rounded-lg bg-violet-500/10 border border-violet-500/20">
-              <div className="flex justify-center mb-2">
-                <div className="rounded-full bg-violet-500/20 p-2">
-                  <GitCommit className="h-5 w-5 text-violet-500" />
+        {/* Right: Usage Metrics */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Usage Metrics</CardTitle>
+            <CardDescription className="text-xs">
+              Token consumption and efficiency
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {/* Tokens used */}
+              <div className="flex items-center gap-3 rounded-lg bg-blue-500/5 border border-blue-500/10 p-3">
+                <div className="rounded-full bg-blue-500/10 p-1.5">
+                  <Zap className="h-3.5 w-3.5 text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-blue-400/80 font-medium">Tokens this week</div>
+                  <div className="text-lg font-bold tabular-nums text-blue-400">{formatNumber(totalTokensEstimate)}</div>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-violet-500">
-                ${avgDaily > 0 ? (avgDaily / 14).toFixed(2) : "0.00"}
+
+              {/* Daily average */}
+              <div className="flex items-center gap-3 rounded-lg bg-violet-500/5 border border-violet-500/10 p-3">
+                <div className="rounded-full bg-violet-500/10 p-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-violet-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-violet-400/80 font-medium">Daily average</div>
+                  <div className="text-lg font-bold tabular-nums text-violet-400">{formatNumber(dailyTokens)} tokens</div>
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Cost per commit
-              </div>
-              <div className="text-xs text-violet-600 mt-2 font-medium">
-                Based on ~14 commits/day average
+
+              {/* Cost per commit */}
+              <div className="flex items-center gap-3 rounded-lg bg-amber-500/5 border border-amber-500/10 p-3">
+                <div className="rounded-full bg-amber-500/10 p-1.5">
+                  <GitCommit className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-amber-400/80 font-medium">Cost per commit</div>
+                  <div className="text-lg font-bold tabular-nums text-amber-400">${costPerCommit.toFixed(2)}</div>
+                  <div className="text-[10px] text-muted-foreground">~14 commits/day avg</div>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Model Pricing Reference */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Model Pricing Reference</CardTitle>
-          <CardDescription>
-            Per million tokens -- for equivalent API cost calculations
+      <Card className="border-border/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Model Pricing Reference</CardTitle>
+          <CardDescription className="text-[10px]">
+            Per million tokens &mdash; for equivalent API cost calculations
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Model</th>
-                  <th className="text-right py-2 font-medium">Input</th>
-                  <th className="text-right py-2 font-medium">Output</th>
-                  <th className="text-right py-2 font-medium">Cache Read</th>
-                  <th className="text-right py-2 font-medium">Cache Create</th>
+                <tr className="border-b border-border/30 text-muted-foreground">
+                  <th className="text-left py-1.5 font-medium">Model</th>
+                  <th className="text-right py-1.5 font-medium">Input</th>
+                  <th className="text-right py-1.5 font-medium">Output</th>
+                  <th className="text-right py-1.5 font-medium">Cache Read</th>
+                  <th className="text-right py-1.5 font-medium">Cache Create</th>
                 </tr>
               </thead>
               <tbody>
@@ -409,28 +490,30 @@ export default function CostsPage() {
                   return (
                     <tr
                       key={model}
-                      className="border-b border-border/50 hover:bg-muted/50"
+                      className="border-b border-border/20 hover:bg-muted/30 transition-colors"
                     >
-                      <td className="py-2.5 font-medium">
-                        <div className="flex items-center gap-2">
+                      <td className="py-1.5 font-medium">
+                        <div className="flex items-center gap-1.5">
                           <div
-                            className="h-2.5 w-2.5 rounded-full"
+                            className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: color }}
                           />
-                          {shortName.charAt(0).toUpperCase() +
-                            shortName.slice(1)}
+                          <span className="text-xs">
+                            {shortName.charAt(0).toUpperCase() +
+                              shortName.slice(1)}
+                          </span>
                         </div>
                       </td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-1.5 font-mono text-muted-foreground">
                         ${pricing.input}
                       </td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-1.5 font-mono text-muted-foreground">
                         ${pricing.output}
                       </td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-1.5 font-mono text-muted-foreground">
                         ${pricing.cacheRead}
                       </td>
-                      <td className="text-right py-2.5 font-mono">
+                      <td className="text-right py-1.5 font-mono text-muted-foreground">
                         ${pricing.cacheCreation}
                       </td>
                     </tr>

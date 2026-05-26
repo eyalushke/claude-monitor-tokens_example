@@ -276,107 +276,110 @@ export default function RecommendationsPage() {
   const label = getScoreLabel(score);
   const scoreColor = getScoreColor(score);
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Lightbulb className="h-7 w-7 text-yellow-500" />
-        <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
-      </div>
+  const scoreGradient = score >= 70
+    ? "from-green-500/10 to-green-600/5 border-green-500/20"
+    : score >= 40
+    ? "from-yellow-500/10 to-yellow-600/5 border-yellow-500/20"
+    : "from-red-500/10 to-red-600/5 border-red-500/20";
 
+  const cacheRate = stats ? Math.round((stats.totalCacheReadTokens / (stats.totalCacheReadTokens + stats.totalInputTokens)) * 100) : 0;
+  const avgSession = stats ? Math.round((stats.totalInputTokens + stats.totalOutputTokens) / Math.max(1, stats.totalSessions) / 1000) : 0;
+  const agentPct = stats ? Math.round(((stats.toolCounts["Agent"] || 0) / Math.max(1, Object.values(stats.toolCounts).reduce((a, b) => a + b, 0))) * 100) : 0;
+
+  return (
+    <div className="space-y-5">
       {usingFallback && (
-        <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-200">
-          <Info className="h-4 w-4 shrink-0" />
-          <span>
-            Supabase is not connected. Showing recommendations based on sample
-            data.
-          </span>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          Showing recommendations based on sample data. Connect Supabase for real analysis.
         </div>
       )}
 
-      {/* Efficiency Score Card */}
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-6">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Efficiency Score
-          </div>
-          <div className={`text-6xl font-bold tabular-nums ${scoreColor}`}>
-            {score}
-          </div>
-          <div className="w-full max-w-md">
-            <Progress value={score} max={100} />
-          </div>
-          <div className="flex items-center gap-2">
-            {score >= 70 ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-            ) : score >= 40 ? (
-              <Info className="h-5 w-5 text-yellow-500" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-            )}
-            <span className={`text-lg font-semibold ${scoreColor}`}>
-              {label}
-            </span>
-          </div>
-          <p className="max-w-md text-center text-sm text-muted-foreground">
-            Based on cache rate (40 pts), model diversity (20 pts), session size
-            (20 pts), and tool efficiency (20 pts).
-          </p>
-        </CardContent>
-      </Card>
+      {/* Score + Breakdown Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        {/* Main Score */}
+        <Card className={`lg:col-span-2 bg-gradient-to-br ${scoreGradient}`}>
+          <CardContent className="pt-5 pb-4 flex flex-col items-center">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Efficiency Score</div>
+            <div className={`text-6xl font-bold tabular-nums ${scoreColor}`}>{score}</div>
+            <Progress value={score} className="h-1.5 mt-3 w-full max-w-[200px]" />
+            <div className="flex items-center gap-1.5 mt-2">
+              {score >= 70 ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : score >= 40 ? <Info className="h-4 w-4 text-yellow-500" /> : <AlertTriangle className="h-4 w-4 text-red-500" />}
+              <span className={`text-sm font-semibold ${scoreColor}`}>{label}</span>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Recommendation Cards */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold tracking-tight">
-          {recommendations.length} Recommendation
-          {recommendations.length !== 1 ? "s" : ""}
+        {/* Score Breakdown Cards */}
+        <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-violet-400 font-medium mb-2">Cache Rate</div>
+            <div className="text-2xl font-bold tabular-nums text-violet-400">{cacheRate}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">of 40 pts</div>
+            <Progress value={Math.min(100, cacheRate * 1.25)} className="h-1 mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-blue-400 font-medium mb-2">Avg Session</div>
+            <div className="text-2xl font-bold tabular-nums text-blue-400">{avgSession}K</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">tokens/session</div>
+            <Progress value={Math.min(100, 100 - avgSession)} className="h-1 mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <CardContent className="pt-4 pb-3">
+            <div className="text-[10px] uppercase tracking-wider text-amber-400 font-medium mb-2">Agent Use</div>
+            <div className="text-2xl font-bold tabular-nums text-amber-400">{agentPct}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">of tool calls</div>
+            <Progress value={Math.min(100, 100 - agentPct * 3)} className="h-1 mt-2" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recommendations */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
+          {recommendations.length} Recommendation{recommendations.length !== 1 ? "s" : ""}
         </h2>
-        {recommendations.map((rec, index) => (
-          <Card
-            key={index}
-            className={`border-l-4 ${getSeverityBorderColor(rec.severity)}`}
-          >
-            <CardContent className="flex flex-col gap-3 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 shrink-0">
-                    {getSeverityIcon(rec.severity)}
+        {recommendations.map((rec, index) => {
+          const severityBg = rec.severity === "critical"
+            ? "from-red-500/5 to-transparent border-l-red-500"
+            : rec.severity === "warning"
+            ? "from-yellow-500/5 to-transparent border-l-yellow-500"
+            : "from-blue-500/5 to-transparent border-l-blue-500";
+          return (
+            <Card key={index} className={`border-l-4 bg-gradient-to-r ${severityBg}`}>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="mt-0.5 shrink-0">{getSeverityIcon(rec.severity)}</div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold leading-snug">{rec.title}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-400 border-green-500/20">
+                          {rec.impact}
+                        </Badge>
+                        <Link href={rec.link} className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary hover:underline">
+                          View details <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold leading-snug">{rec.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {rec.description}
-                    </p>
-                  </div>
+                  <Badge variant="outline" className={`shrink-0 text-[9px] capitalize ${
+                    rec.severity === "critical" ? "border-red-500/30 text-red-400"
+                    : rec.severity === "warning" ? "border-yellow-500/30 text-yellow-400"
+                    : "border-blue-500/30 text-blue-400"
+                  }`}>
+                    {rec.severity}
+                  </Badge>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`shrink-0 capitalize ${
-                    rec.severity === "critical"
-                      ? "border-red-300 text-red-700 dark:border-red-800 dark:text-red-400"
-                      : rec.severity === "warning"
-                        ? "border-yellow-300 text-yellow-700 dark:border-yellow-800 dark:text-yellow-400"
-                        : "border-blue-300 text-blue-700 dark:border-blue-800 dark:text-blue-400"
-                  }`}
-                >
-                  {rec.severity}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  {rec.impact}
-                </Badge>
-                <Link
-                  href={rec.link}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                >
-                  View details
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
