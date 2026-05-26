@@ -15,6 +15,8 @@ Usage:
   python3 trigger_server.py --port 7830  # Custom port
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import logging
