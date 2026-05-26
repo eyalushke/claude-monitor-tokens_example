@@ -32,6 +32,7 @@ export function useSync(autoTrigger: boolean = true) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const initialLoadDone = useRef(false);
+  const waitingForIdle = useRef(false);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -39,47 +40,16 @@ export function useSync(autoTrigger: boolean = true) {
       pollRef.current = null;
       log("polling", "stopped");
     }
+    waitingForIdle.current = false;
   }, []);
-
-  const pollSyncState = useCallback(async () => {
-    if (!supabaseAvailable()) return;
-    try {
-      const { createBrowserClient } = await import("@/lib/supabase/client");
-      const supabase = createBrowserClient();
-      const { data } = await supabase
-        .from("sync_state")
-        .select("*")
-        .order("id", { ascending: false })
-        .limit(1);
-
-      if (!mountedRef.current) return;
-      if (data && data.length > 0) {
-        const row = data[0];
-        log("polling", `db status=${row.status}, last_sync=${row.last_sync_at}`);
-        if (row.status === "idle" && syncState.status === "running") {
-          log("polling", "sync completed! refreshing data...");
-          setSyncState((prev) => ({
-            ...prev,
-            status: "idle",
-            lastSyncAt: row.last_sync_at,
-            filesProcessed: row.files_processed ?? 0,
-            messagesIngested: row.messages_ingested ?? 0,
-            error: null,
-          }));
-          setSyncVersion((v) => v + 1);
-          stopPolling();
-        }
-      }
-    } catch (e) {
-      log("polling", "error polling supabase:", e);
-    }
-  }, [syncState.status, stopPolling]);
 
   const startPolling = useCallback(() => {
     stopPolling();
+    waitingForIdle.current = true;
     log("polling", "started (every 2s)");
     const startTime = Date.now();
-    pollRef.current = setInterval(() => {
+
+    pollRef.current = setInterval(async () => {
       if (Date.now() - startTime > SYNC_CONFIG.maxPollDurationMs) {
         log("polling", "timed out after 2 minutes");
         stopPolling();
@@ -90,9 +60,43 @@ export function useSync(autoTrigger: boolean = true) {
         }));
         return;
       }
-      pollSyncState();
+
+      if (!supabaseAvailable()) return;
+      try {
+        const { createBrowserClient } = await import("@/lib/supabase/client");
+        const supabase = createBrowserClient();
+        const { data } = await supabase
+          .from("sync_state")
+          .select("*")
+          .order("id", { ascending: false })
+          .limit(1);
+
+        if (!mountedRef.current) return;
+        if (data && data.length > 0) {
+          const row = data[0];
+          log("polling", `db status=${row.status}, last_sync=${row.last_sync_at}`);
+          if (row.status === "idle" && waitingForIdle.current) {
+            log("polling", "sync completed! refreshing data...");
+            waitingForIdle.current = false;
+            setSyncState({
+              status: "idle",
+              lastSyncAt: row.last_sync_at,
+              filesProcessed: row.files_processed ?? 0,
+              messagesIngested: row.messages_ingested ?? 0,
+              error: null,
+            });
+            setSyncVersion((v) => v + 1);
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          }
+        }
+      } catch (e) {
+        log("polling", "error polling supabase:", e);
+      }
     }, SYNC_CONFIG.pollIntervalMs);
-  }, [stopPolling, pollSyncState]);
+  }, [stopPolling]);
 
   const triggerSync = useCallback(async () => {
     log("trigger", `status=${syncState.status}, lastSync=${syncState.lastSyncAt}`);
