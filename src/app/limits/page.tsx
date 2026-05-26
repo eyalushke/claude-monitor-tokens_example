@@ -82,7 +82,8 @@ interface ThrottleDrilldown {
   sessions: SessionDetail[];
   totalTokens: number;
   totalMessages: number;
-  cumulativeTimeline: { time: string; cumulative: number }[];
+  cumulativeTimeline: Record<string, any>[];
+  cumulativeProjects: string[];
 }
 
 interface DayDetail {
@@ -491,7 +492,9 @@ export default function LimitsPage() {
       for (const s of (sessions || [])) sessionMap[s.id] = s;
 
       const bySession: Record<string, any> = {};
-      const cumulative: { time: string; cumulative: number }[] = [];
+      const projectRunning: Record<string, number> = {};
+      const projectTotalTokens: Record<string, number> = {};
+      const cumulative: Record<string, any>[] = [];
       let runningTotal = 0;
 
       for (const m of msgs) {
@@ -518,12 +521,29 @@ export default function LimitsPage() {
         if (m.timestamp > sd.lastMessage) sd.lastMessage = m.timestamp;
         for (const t of (m.tool_names || [])) sd.tools[t] = (sd.tools[t] || 0) + 1;
 
-        runningTotal += (m.input_tokens || 0) + (m.output_tokens || 0);
-        cumulative.push({ time: m.timestamp.slice(11, 16), cumulative: runningTotal });
+        const proj = sd.projectName;
+        const tokens = (m.input_tokens || 0) + (m.output_tokens || 0);
+        runningTotal += tokens;
+        projectRunning[proj] = (projectRunning[proj] || 0) + tokens;
+        projectTotalTokens[proj] = (projectTotalTokens[proj] || 0) + tokens;
+
+        const entry: Record<string, any> = { time: m.timestamp.slice(11, 16) };
+        for (const [p, v] of Object.entries(projectRunning)) entry[p] = v;
+        cumulative.push(entry);
       }
+
+      const topCumProjects = Object.entries(projectTotalTokens)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 6)
+        .map(([name]) => name);
 
       const sessionList = Object.values(bySession) as SessionDetail[];
       sessionList.sort((a, b) => (b.inputTokens + b.outputTokens) - (a.inputTokens + a.outputTokens));
+
+      const sampled = cumulative.filter((_, i) => i % Math.max(1, Math.floor(cumulative.length / 100)) === 0);
+      if (cumulative.length > 0 && sampled[sampled.length - 1] !== cumulative[cumulative.length - 1]) {
+        sampled.push(cumulative[cumulative.length - 1]);
+      }
 
       setDrilldown({
         event,
@@ -531,7 +551,8 @@ export default function LimitsPage() {
         sessions: sessionList,
         totalTokens: runningTotal,
         totalMessages: msgs.length,
-        cumulativeTimeline: cumulative.filter((_, i) => i % Math.max(1, Math.floor(cumulative.length / 100)) === 0),
+        cumulativeTimeline: sampled,
+        cumulativeProjects: topCumProjects,
       });
     } catch (e) {
       console.error("Drilldown error:", e);
@@ -785,14 +806,17 @@ export default function LimitsPage() {
 
                                             {/* Cumulative token buildup chart */}
                                             <div>
-                                              <h5 className="text-xs font-semibold mb-1">Cumulative Token Buildup → Throttle</h5>
-                                              <ResponsiveContainer width="100%" height={140}>
+                                              <h5 className="text-xs font-semibold mb-1">Cumulative Token Buildup by Project → Throttle</h5>
+                                              <ResponsiveContainer width="100%" height={180}>
                                                 <AreaChart data={drilldown.cumulativeTimeline}>
                                                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                                                   <XAxis dataKey="time" fontSize={9} />
                                                   <YAxis fontSize={9} tickFormatter={(v: any) => formatNum(v)} />
                                                   <Tooltip formatter={(v: any) => formatNum(Number(v))} />
-                                                  <Area type="monotone" dataKey="cumulative" stroke="#EF4444" fill="#EF4444" fillOpacity={0.2} />
+                                                  <Legend />
+                                                  {drilldown.cumulativeProjects.map((proj, i) => (
+                                                    <Area key={proj} type="monotone" dataKey={proj} stackId="cum" stroke={PROJECT_COLORS[i % PROJECT_COLORS.length]} fill={PROJECT_COLORS[i % PROJECT_COLORS.length]} fillOpacity={0.4} />
+                                                  ))}
                                                 </AreaChart>
                                               </ResponsiveContainer>
                                             </div>
