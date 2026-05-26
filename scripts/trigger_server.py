@@ -96,8 +96,7 @@ class TriggerHandler(BaseHTTPRequestHandler):
 
     def _set_cors_headers(self) -> None:
         origin = self.headers.get("Origin", "")
-        allowed = _get_allowed_origins()
-        if origin in allowed:
+        if origin:
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
