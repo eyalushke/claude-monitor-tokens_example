@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { formatNumber as formatNum } from "@/lib/utils";
 import {
@@ -127,6 +127,7 @@ export default function LimitsPage() {
   const [hourlyLoading, setHourlyLoading] = useState(false);
   const [hourlySessions, setHourlySessions] = useState(0);
   const [hourlyMessages, setHourlyMessages] = useState(0);
+  const [hourlyThrottleTimes, setHourlyThrottleTimes] = useState<string[]>([]);
 
   async function loadDays() {
     try {
@@ -219,6 +220,7 @@ export default function LimitsPage() {
         setHourlyProjectNames(["eyal-second-brain-llm", "claude-monitor-tokens"]);
         setHourlySessions(12);
         setHourlyMessages(450);
+        setHourlyThrottleTimes(["14:54"]);
         setHourlyLoading(false);
         return;
       }
@@ -226,13 +228,26 @@ export default function LimitsPage() {
       const { createBrowserClient } = await import("@/lib/supabase/client");
       const supabase = createBrowserClient();
 
-      const { data: messages } = await supabase
-        .from("messages")
-        .select("timestamp, input_tokens, output_tokens, session_id")
-        .gte("timestamp", `${date}T00:00:00Z`)
-        .lte("timestamp", `${date}T23:59:59Z`)
-        .order("timestamp", { ascending: true })
-        .limit(5000);
+      const [{ data: messages }, { data: rateLimits }] = await Promise.all([
+        supabase
+          .from("messages")
+          .select("timestamp, input_tokens, output_tokens, session_id")
+          .gte("timestamp", `${date}T00:00:00Z`)
+          .lte("timestamp", `${date}T23:59:59Z`)
+          .order("timestamp", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("rate_limit_events")
+          .select("timestamp, reset_message")
+          .gte("timestamp", `${date}T00:00:00Z`)
+          .lte("timestamp", `${date}T23:59:59Z`)
+          .order("timestamp", { ascending: true }),
+      ]);
+
+      const throttleTimes = (rateLimits || [])
+        .filter((rl: any) => rl.reset_message)
+        .map((rl: any) => rl.timestamp.slice(11, 16));
+      setHourlyThrottleTimes(throttleTimes);
 
       if (!messages || messages.length === 0) {
         setHourlyProjectData([]);
@@ -645,6 +660,16 @@ export default function LimitsPage() {
                 {hourlyProjectData.some((d: any) => d.Other > 0) && (
                   <Bar dataKey="Other" stackId="p" fill="#6B7280" radius={[2, 2, 0, 0]} />
                 )}
+                {hourlyThrottleTimes.map((time) => (
+                  <ReferenceLine
+                    key={time}
+                    x={time.slice(0, 2) + ":00"}
+                    stroke="#EF4444"
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                    label={{ value: `LIMIT ${time}`, position: "top", fill: "#EF4444", fontSize: 10, fontWeight: 600 }}
+                  />
+                ))}
               </BarChart>
             </ResponsiveContainer>
           )}
