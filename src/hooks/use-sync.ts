@@ -32,7 +32,7 @@ export function useSync(autoTrigger: boolean = true) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const initialLoadDone = useRef(false);
-  const waitingForIdle = useRef(false);
+  const triggerTimestamp = useRef<string | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -40,13 +40,13 @@ export function useSync(autoTrigger: boolean = true) {
       pollRef.current = null;
       log("polling", "stopped");
     }
-    waitingForIdle.current = false;
+    triggerTimestamp.current = null;
   }, []);
 
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((lastSyncBefore: string | null) => {
     stopPolling();
-    waitingForIdle.current = true;
-    log("polling", "started (every 2s)");
+    triggerTimestamp.current = lastSyncBefore;
+    log("polling", `started — waiting for last_sync_at to change from ${lastSyncBefore}`);
     const startTime = Date.now();
 
     pollRef.current = setInterval(async () => {
@@ -74,10 +74,13 @@ export function useSync(autoTrigger: boolean = true) {
         if (!mountedRef.current) return;
         if (data && data.length > 0) {
           const row = data[0];
-          log("polling", `db status=${row.status}, last_sync=${row.last_sync_at}`);
-          if (row.status === "idle" && waitingForIdle.current) {
+          const before = triggerTimestamp.current;
+          const isNewer = row.last_sync_at && (!before || row.last_sync_at > before);
+          log("polling", `db status=${row.status}, last_sync=${row.last_sync_at}, isNewer=${isNewer}`);
+
+          if (row.status === "idle" && isNewer) {
             log("polling", "sync completed! refreshing data...");
-            waitingForIdle.current = false;
+            triggerTimestamp.current = null;
             setSyncState({
               status: "idle",
               lastSyncAt: row.last_sync_at,
@@ -133,9 +136,10 @@ export function useSync(autoTrigger: boolean = true) {
       log("trigger", `response: ${res.status} ${res.statusText}`);
 
       if (res.ok || res.status === 409) {
+        const beforeSync = syncState.lastSyncAt;
         setSyncState((prev) => ({ ...prev, status: "running", error: null }));
         sessionStorage.setItem(SESSION_KEY, String(Date.now()));
-        startPolling();
+        startPolling(beforeSync);
       } else {
         const body = await res.json().catch(() => ({}));
         log("trigger", "unexpected response:", body);
@@ -190,7 +194,7 @@ export function useSync(autoTrigger: boolean = true) {
           }));
           if (row.status === "running") {
             log("init", "db says running — starting poll");
-            startPolling();
+            startPolling(row.last_sync_at);
           }
         } else {
           log("init", "no sync_state rows found");
