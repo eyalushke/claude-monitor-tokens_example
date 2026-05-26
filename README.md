@@ -13,16 +13,13 @@ A full-stack monitoring dashboard that parses your local Claude Code session fil
 Claude Code Max subscribers get a rolling 5-hour token window. When you exceed it, Claude locks you out until the window resets. This dashboard gives you full transparency into:
 
 - **What happened before each lockout** - drill down into every session, subagent, tool call, and project that contributed
+- **Hourly token usage by project** - navigable per-day chart with rate limit markers at the exact minute
 - **Which tools eat your tokens** - Read, Bash, Edit, Agent, WebFetch ranked by consumption
 - **Which projects are heaviest** - per-project token breakdown over time
+- **Cumulative buildup by project** - stacked area chart showing how each project contributed to a throttle event
 - **Real rate limit detection** - uses actual "You've hit your limit" events from your logs, not estimates
 - **Optimization recommendations** - auto-generated tips based on your real usage patterns
-
-## Screenshots
-
-| Overview | Limit Analysis | Tool Breakdown |
-|----------|---------------|----------------|
-| KPI gauges, token timeline by project, throttle markers | Per-event drill-down with session stack and cumulative buildup | Which tools consume the most tokens |
+- **Local timezone support** - all chart times display in your local timezone
 
 ## Architecture
 
@@ -30,7 +27,7 @@ Claude Code Max subscribers get a rolling 5-hour token window. When you exceed i
 ~/.claude/projects/*.jsonl     (Claude Code writes these automatically)
          |
          v
-  Python ingestion script      (parses JSONL, runs locally every 12hr)
+  Python ingestion script      (parses JSONL, runs locally every 6hr via scheduler)
          |
          v
   Supabase PostgreSQL           (claude_monitor schema, RLS-protected)
@@ -39,30 +36,29 @@ Claude Code Max subscribers get a rolling 5-hour token window. When you exceed i
   Next.js Dashboard on Vercel   (dark/light theme, mobile + desktop)
 ```
 
-**Key design decision:** No Anthropic API key needed. The dashboard reads JSONL files that Claude Code already saves to `~/.claude/projects/` on your Mac. Zero extra token cost.
+**Key design decision:** No Anthropic API key needed. The dashboard reads JSONL files that Claude Code already saves to `~/.claude/projects/` on your machine. Zero extra token cost.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 15, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Recharts |
 | Database | Supabase (PostgreSQL) with dedicated `claude_monitor` schema |
-| Ingestion | Python 3 with psycopg2/supabase-py |
+| Ingestion | Python 3.9+ with supabase-py |
 | Hosting | Vercel |
-| Auto-sync | macOS LaunchAgent (launchd) |
+| Auto-sync | macOS LaunchAgent / Windows Task Scheduler / Linux cron |
 
 ## Dashboard Pages
 
 | Route | Page | Description |
 |-------|------|-------------|
 | `/` | Overview | KPI gauges, token timeline by project, model distribution, daily activity with throttle markers |
-| `/limits` | Limit Analysis | Day-by-day throttle history with per-event drill-down: session stack, cumulative token buildup, session hierarchy (main + subagents) |
+| `/limits` | Limit Analysis | Hourly token usage by project with date navigation, rate limit markers, per-event drill-down with cumulative buildup by project, session hierarchy |
 | `/tokens` | Tokens | Token type breakdown (input/output/cached), cache efficiency, model comparison |
 | `/tools` | Tools | Tool-level analysis - which tools consume the most tokens |
 | `/projects` | Projects | Per-project treemap and comparison table |
 | `/costs` | Costs | Equivalent API cost tracking and value analysis |
 | `/recommendations` | Tips | Auto-generated optimization suggestions based on your data |
-| `/mockup` | Mockup | Interactive demo with sample data (no database needed) |
 
 ---
 
@@ -70,7 +66,7 @@ Claude Code Max subscribers get a rolling 5-hour token window. When you exceed i
 
 ### Prerequisites
 
-- **macOS** with Claude Code installed (the JSONL files live at `~/.claude/projects/`)
+- **macOS, Windows, or Linux** with Claude Code installed (the JSONL files live at `~/.claude/projects/`)
 - **Node.js 18+** and **npm**
 - **Python 3.9+**
 - A free **Supabase** account ([supabase.com](https://supabase.com))
@@ -100,20 +96,13 @@ git status
 rm .env.local scripts/.env
 ```
 
-The `.gitignore` excludes all `.env*` files except the `.example` templates:
-```
-.env*
-!.env.local.example
-!scripts/.env.example
-```
-
 ### Step 3: Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Note your project URL and keys from **Settings > API > Project API keys**:
    - `Project URL` (e.g., `https://xxxxx.supabase.co`)
-   - `anon/public key` (starts with `sb_publishable_` or `eyJ...`)
-   - `service_role key` (starts with `sb_secret_` or `eyJ...`) - keep this secret!
+   - `anon/public key` (starts with `eyJ...`)
+   - `service_role key` (starts with `eyJ...`) - keep this secret!
 
 ### Step 4: Run Database Migrations
 
@@ -151,9 +140,7 @@ npm install
 npm run dev
 ```
 
-Visit **http://localhost:3000/mockup** to see the dashboard with sample data (no DB needed).
-
-Visit **http://localhost:3000** to see the real dashboard (needs Supabase data).
+Visit **http://localhost:3000** to see the dashboard (needs Supabase data after ingestion).
 
 ### Step 7: Configure the Ingestion Script
 
@@ -187,15 +174,6 @@ Sessions: 532
 Messages: 24084
 Total input tokens: 1,807,705
 Total output tokens: 11,128,705
-Projects by token usage:
-  eyal-second-brain-llm: 6,305,868
-  zadara-finance-eom: 1,376,857
-  ...
-Tool invocation counts:
-  Read: 6144
-  Bash: 3999
-  Edit: 1226
-  ...
 ```
 
 ### Step 9: Run Real Ingestion
@@ -208,17 +186,28 @@ This pushes all parsed data to Supabase. Takes about 20-30 seconds for the first
 
 Now visit **http://localhost:3000** - your dashboard should show real data!
 
-### Step 10: Set Up Auto-Sync (Every 12 Hours)
+### Step 10: Set Up Scheduled Auto-Sync
+
+The ingestion script needs to run periodically to keep the dashboard up to date. Choose the method for your operating system:
+
+---
+
+#### macOS (LaunchAgent) - Recommended
+
+Run the included setup script:
 
 ```bash
-cd ..  # back to project root
 bash scripts/setup-launchd.sh
 ```
 
 This installs a macOS LaunchAgent that:
-- Runs the ingestion script every 12 hours
-- Also runs on login
+- Runs the ingestion script **every 6 hours**
+- Also runs **on login** (when your Mac wakes from sleep)
 - Logs to `~/Library/Logs/claude-monitor-ingest.log`
+
+**How it works:** macOS `launchd` is the system scheduler. A LaunchAgent runs in your user session - it starts when you log in and pauses when your Mac sleeps. When the Mac wakes up and the 6-hour interval has elapsed, it runs immediately.
+
+The setup script creates a plist file at `~/Library/LaunchAgents/com.claude-monitor.ingest.plist`. See [`scripts/setup-launchd.sh`](scripts/setup-launchd.sh) for the full source.
 
 **Useful commands:**
 
@@ -231,7 +220,112 @@ tail -f ~/Library/Logs/claude-monitor-ingest.log
 
 # Stop auto-sync
 launchctl unload ~/Library/LaunchAgents/com.claude-monitor.ingest.plist
+
+# Re-enable auto-sync
+launchctl load ~/Library/LaunchAgents/com.claude-monitor.ingest.plist
 ```
+
+---
+
+#### Windows (Task Scheduler)
+
+1. Open **Task Scheduler** (search for it in the Start menu)
+
+2. Click **Create Basic Task**:
+   - Name: `Claude Monitor Ingest`
+   - Trigger: **Daily**, set start time, then check **Repeat task every 6 hours** for a duration of **Indefinitely**
+   - Action: **Start a program**
+   - Program: `python3` (or full path like `C:\Python39\python.exe`)
+   - Arguments: `C:\path\to\claude-monitor-tokens\scripts\ingest.py`
+   - Start in: `C:\path\to\claude-monitor-tokens\scripts`
+
+3. In the task properties, under **Conditions**:
+   - Uncheck "Start the task only if the computer is on AC power"
+   - Check "Wake the computer to run this task" (optional)
+
+4. Under **Settings**:
+   - Check "Run task as soon as possible after a scheduled start is missed"
+   - This ensures it runs after sleep/hibernate
+
+**Or use PowerShell** to create it programmatically:
+
+```powershell
+$action = New-ScheduledTaskAction `
+    -Execute "python3" `
+    -Argument "C:\path\to\claude-monitor-tokens\scripts\ingest.py" `
+    -WorkingDirectory "C:\path\to\claude-monitor-tokens\scripts"
+
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Hours 6) `
+    -RepetitionDuration ([TimeSpan]::MaxValue)
+
+$settings = New-ScheduledTaskSettingsSet `
+    -StartWhenAvailable `
+    -DontStopIfGoingOnBatteries `
+    -AllowStartIfOnBatteries
+
+Register-ScheduledTask `
+    -TaskName "Claude Monitor Ingest" `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Description "Sync Claude Code token usage to Supabase every 6 hours"
+```
+
+**Note:** On Windows, Claude Code stores sessions at `%USERPROFILE%\.claude\projects\`. Set `CLAUDE_DIR=%USERPROFILE%\.claude` in your `scripts/.env`.
+
+---
+
+#### Linux (cron)
+
+Add a cron job that runs every 6 hours:
+
+```bash
+crontab -e
+```
+
+Add this line (adjust the path):
+
+```cron
+0 */6 * * * cd /path/to/claude-monitor-tokens/scripts && /usr/bin/python3 ingest.py >> ~/claude-monitor-ingest.log 2>&1
+```
+
+This runs at minute 0 of every 6th hour (00:00, 06:00, 12:00, 18:00). The cron daemon handles missed runs when the machine was asleep — the job runs at the next scheduled time after wake.
+
+For **systemd timer** (alternative to cron, runs after sleep):
+
+```bash
+# Create ~/. config/systemd/user/claude-monitor.service
+[Unit]
+Description=Claude Monitor Token Ingestion
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/claude-monitor-tokens/scripts
+ExecStart=/usr/bin/python3 ingest.py
+```
+
+```bash
+# Create ~/.config/systemd/user/claude-monitor.timer
+[Unit]
+Description=Run Claude Monitor ingestion every 6 hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl --user enable --now claude-monitor.timer
+```
+
+The `Persistent=true` flag ensures the timer fires after sleep/suspend if the interval was missed.
+
+---
 
 ### Step 11: Deploy to Vercel (Optional)
 
@@ -281,7 +375,7 @@ All tables live in the `claude_monitor` schema in Supabase.
 
 ## How the Ingestion Works
 
-The Python script (`scripts/ingest.py`) reads JSONL files from `~/.claude/projects/`:
+The Python script ([`scripts/ingest.py`](scripts/ingest.py)) reads JSONL files from `~/.claude/projects/`:
 
 1. **Parses** each line as JSON, extracting `type: "assistant"` records with `message.usage` data
 2. **Extracts** token counts (input, output, cache_read, cache_creation), tool names, model, session ID
@@ -292,6 +386,17 @@ The Python script (`scripts/ingest.py`) reads JSONL files from `~/.claude/projec
 Flags:
 - `--dry-run` - Parse and report without writing to DB
 - `--force` - Re-process all files regardless of modification time
+
+### Scripts Reference
+
+| Script | Description |
+|--------|-------------|
+| [`scripts/ingest.py`](scripts/ingest.py) | Main ingestion script - parses JSONL files and pushes to Supabase |
+| [`scripts/setup-launchd.sh`](scripts/setup-launchd.sh) | macOS LaunchAgent installer - sets up 6-hour auto-sync |
+| [`scripts/sync-now.sh`](scripts/sync-now.sh) | One-liner to manually trigger ingestion |
+| [`scripts/trigger_server.py`](scripts/trigger_server.py) | Optional localhost HTTP server for browser-triggered sync (advanced) |
+| [`scripts/requirements.txt`](scripts/requirements.txt) | Python dependencies |
+| [`scripts/.env.example`](scripts/.env.example) | Template for ingestion environment variables |
 
 ---
 
@@ -307,7 +412,13 @@ A: Community-estimated token limit for Max5 per 5-hour window. Our analysis show
 A: Yes. Change `NEXT_PUBLIC_PLAN_TYPE=pro` and `NEXT_PUBLIC_PLAN_TOKEN_LIMIT=44000` in your `.env.local`.
 
 **Q: Does it work on Linux/Windows?**
-A: The dashboard (Next.js) works anywhere. The ingestion script needs access to `~/.claude/projects/` which is where Claude Code stores sessions. The auto-sync uses macOS launchd - on Linux, use a cron job instead.
+A: Yes. The dashboard (Next.js) works anywhere. The ingestion script works on any OS with Python 3.9+ and access to `~/.claude/projects/`. See [Step 10](#step-10-set-up-scheduled-auto-sync) for platform-specific scheduling instructions.
+
+**Q: How do I change the sync interval?**
+A: On macOS, edit `~/Library/LaunchAgents/com.claude-monitor.ingest.plist` and change the `StartInterval` value (in seconds). Default is `21600` (6 hours). Then reload: `launchctl unload <plist> && launchctl load <plist>`.
+
+**Q: What happens when my computer sleeps?**
+A: The scheduler pauses during sleep. On wake, it checks if the interval has elapsed and runs immediately if so. No data is lost - the script processes all files modified since the last sync.
 
 **Q: How do I update after pulling new code?**
 A: `npm install && npm run build` for the dashboard. `pip3 install -r scripts/requirements.txt` for the ingestion.
