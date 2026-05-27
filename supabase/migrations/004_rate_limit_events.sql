@@ -22,6 +22,3 @@ ALTER TABLE claude_monitor.rate_limit_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow read access" ON claude_monitor.rate_limit_events FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Service role full access" ON claude_monitor.rate_limit_events FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Also create the public view for dashboard access
-CREATE OR REPLACE VIEW public.cm_rate_limit_events AS SELECT * FROM claude_monitor.rate_limit_events;
-GRANT SELECT ON public.cm_rate_limit_events TO anon, authenticated;

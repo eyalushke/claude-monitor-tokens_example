@@ -112,9 +112,10 @@ In your Supabase project, go to **SQL Editor** and run these files **in order**:
 1. supabase/migrations/001_create_tables.sql     -- Creates tables in claude_monitor schema
 2. supabase/migrations/002_expose_schema.sql      -- Exposes schema to PostgREST API
 3. supabase/migrations/004_rate_limit_events.sql  -- Adds rate limit event tracking
+4. supabase/migrations/005_remove_public_objects.sql  -- Cleanup (removes any stale public objects)
 ```
 
-> **Important:** After running `002_expose_schema.sql`, go to **Settings > API > Data API Settings > Exposed schemas** and verify `claude_monitor` appears in the list. If not, add it manually and restart the project from **Settings > General > Restart project**.
+> **Important:** All tables live in the `claude_monitor` schema, NOT in `public`. After running `002_expose_schema.sql`, go to **Settings > API > Data API Settings > Exposed schemas** and verify `claude_monitor` appears in the list. If not, add it manually and restart the project from **Settings > General > Restart project**.
 
 ### Step 5: Configure Environment (Dashboard)
 
