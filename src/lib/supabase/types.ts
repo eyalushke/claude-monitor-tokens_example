@@ -38,15 +38,6 @@ export interface Message {
   created_at: string;
 }
 
-export interface ToolUsage {
-  id: number;
-  message_id: number;
-  session_id: string;
-  tool_name: string;
-  timestamp: string;
-  created_at: string;
-}
-
 export interface DailyAggregate {
   id: number;
   date: string;

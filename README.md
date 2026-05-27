@@ -366,7 +366,6 @@ All tables live in the `claude_monitor` schema in Supabase.
 |-------|-------------|------------|
 | `sessions` | One row per Claude Code session | id, project_name, started_at, total_*_tokens, is_subagent |
 | `messages` | One row per assistant response | session_id, model, input_tokens, output_tokens, cache_*, tool_names |
-| `tool_usage` | One row per tool invocation | message_id, tool_name, timestamp |
 | `daily_aggregates` | Pre-computed daily summaries | date, project_name, model, token totals |
 | `tool_daily_aggregates` | Per-tool daily summaries | date, tool_name, invocation_count, associated tokens |
 | `rate_limit_events` | Actual "You've hit your limit" events | timestamp, reset_message, tokens_in_window_* |
